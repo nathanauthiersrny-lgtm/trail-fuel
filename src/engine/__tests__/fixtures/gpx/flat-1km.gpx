@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="trail-fuel-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Flat 1km</name>
+    <trkseg>
+      <trkpt lat="45.0000" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0009" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0018" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0027" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0036" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0045" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0054" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0063" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0072" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0081" lon="6.0000"><ele>1000</ele></trkpt>
+      <trkpt lat="45.0090" lon="6.0000"><ele>1000</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

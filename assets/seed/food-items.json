@@ -1,0 +1,122 @@
+[
+  {
+    "id": "seed:gel-sis-go",
+    "name": "Gel SIS Go",
+    "type": "gel",
+    "carbs_g": 22,
+    "sodium_mg": 0,
+    "weight_g": 60
+  },
+  {
+    "id": "seed:gel-maurten-100",
+    "name": "Gel Maurten 100",
+    "type": "gel",
+    "carbs_g": 25,
+    "sodium_mg": 0,
+    "weight_g": 40
+  },
+  {
+    "id": "seed:gel-overstim-antioxydant",
+    "name": "Gel Overstim Antioxydant",
+    "type": "gel",
+    "carbs_g": 20,
+    "sodium_mg": 50,
+    "weight_g": 33
+  },
+  {
+    "id": "seed:gel-decathlon-aptonia",
+    "name": "Gel Decathlon Aptonia",
+    "type": "gel",
+    "carbs_g": 22,
+    "sodium_mg": 30,
+    "weight_g": 32
+  },
+  {
+    "id": "seed:bar-maurten-solid-160",
+    "name": "Barre Maurten Solid 160",
+    "type": "bar",
+    "carbs_g": 40,
+    "sodium_mg": 0,
+    "weight_g": 55
+  },
+  {
+    "id": "seed:bar-clif",
+    "name": "Barre Clif",
+    "type": "bar",
+    "carbs_g": 40,
+    "sodium_mg": 150,
+    "weight_g": 68
+  },
+  {
+    "id": "seed:bar-decathlon-aptonia",
+    "name": "Barre Decathlon Aptonia",
+    "type": "bar",
+    "carbs_g": 30,
+    "sodium_mg": 0,
+    "weight_g": 35
+  },
+  {
+    "id": "seed:water",
+    "name": "Eau plate",
+    "type": "water",
+    "carbs_g": 0,
+    "sodium_mg": 0,
+    "volume_ml": 500
+  },
+  {
+    "id": "seed:isotonic-homemade",
+    "name": "Isotonique maison",
+    "type": "drink_mix",
+    "carbs_g": 30,
+    "sodium_mg": 300,
+    "volume_ml": 500
+  },
+  {
+    "id": "seed:overstim-hydrixir",
+    "name": "Overstim Hydrixir",
+    "type": "drink_mix",
+    "carbs_g": 35,
+    "sodium_mg": 400,
+    "volume_ml": 500
+  },
+  {
+    "id": "seed:compote-pomme",
+    "name": "Compote pomme (gourde)",
+    "type": "real_food",
+    "carbs_g": 15,
+    "sodium_mg": 0,
+    "weight_g": 90
+  },
+  {
+    "id": "seed:compote-pomme-banane",
+    "name": "Compote pomme-banane (gourde)",
+    "type": "real_food",
+    "carbs_g": 18,
+    "sodium_mg": 0,
+    "weight_g": 90
+  },
+  {
+    "id": "seed:tuc",
+    "name": "Tuc (sachet)",
+    "type": "real_food",
+    "carbs_g": 18,
+    "sodium_mg": 200,
+    "weight_g": 25
+  },
+  {
+    "id": "seed:banane",
+    "name": "Banane",
+    "type": "real_food",
+    "carbs_g": 25,
+    "sodium_mg": 0,
+    "weight_g": 120
+  },
+  {
+    "id": "seed:coca-cola",
+    "name": "Coca-Cola (canette 250ml)",
+    "type": "real_food",
+    "carbs_g": 25,
+    "sodium_mg": 5,
+    "volume_ml": 250
+  }
+]
