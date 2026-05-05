@@ -11,6 +11,7 @@ export default function RootLayout() {
         <Stack.Screen name="food-item-form" options={{ title: 'Item' }} />
         <Stack.Screen name="race-creation" options={{ title: 'Nouvelle sortie' }} />
         <Stack.Screen name="race-preview" options={{ title: 'Aperçu' }} />
+        <Stack.Screen name="dev/notification-test" options={{ title: 'Notif test' }} />
       </Stack>
       <StatusBar style="auto" />
     </>

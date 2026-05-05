@@ -27,8 +27,24 @@ export default function HomeScreen() {
         </Link>
       </View>
 
-      {__DEV__ ? <DevWipeDbButton /> : null}
+      {__DEV__ ? (
+        <View style={styles.devGroup}>
+          <DevNotifTestButton />
+          <DevWipeDbButton />
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function DevNotifTestButton() {
+  return (
+    <TouchableOpacity
+      style={styles.devButton}
+      onPress={() => router.push('/dev/notification-test')}
+    >
+      <Text style={styles.devButtonText}>[DEV] Notif test</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -98,10 +114,13 @@ const styles = StyleSheet.create({
     color: '#0a7ea4',
     paddingVertical: 12,
   },
-  devButton: {
+  devGroup: {
     marginTop: 'auto',
     marginBottom: 24,
-    alignSelf: 'flex-start',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  devButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
