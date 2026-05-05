@@ -7,6 +7,8 @@ import { listRaces } from '../db/repos/race-repo';
 import { useDatabase } from '../hooks/use-database';
 import type { Race } from '../models/race';
 
+const RECENT_RACE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default function HomeScreen() {
   const dbState = useDatabase();
   const [activeRace, setActiveRace] = useState<Race | null>(null);
@@ -17,9 +19,16 @@ export default function HomeScreen() {
       let cancelled = false;
       void listRaces(dbState.db).then((races) => {
         if (cancelled) return;
+        const now = Date.now();
         const next =
           races.find((r) => r.status === 'in_progress') ??
           races.find((r) => r.status === 'planned') ??
+          races.find(
+            (r) =>
+              (r.status === 'completed' || r.status === 'abandoned') &&
+              r.ended_at !== null &&
+              now - r.ended_at < RECENT_RACE_WINDOW_MS,
+          ) ??
           null;
         setActiveRace(next);
       });
@@ -63,23 +72,73 @@ export default function HomeScreen() {
   );
 }
 
+type BannerVariant = {
+  bannerStyle: 'planned' | 'in_progress' | 'completed' | 'abandoned';
+  label: string;
+  cta: string;
+  href: { pathname: '/race/[id]' | '/race/[id]/summary'; params: { id: string } };
+};
+
+function bannerVariant(race: Race): BannerVariant {
+  switch (race.status) {
+    case 'in_progress':
+      return {
+        bannerStyle: 'in_progress',
+        label: 'Course en cours',
+        cta: 'Reprendre →',
+        href: { pathname: '/race/[id]', params: { id: race.id } },
+      };
+    case 'planned':
+      return {
+        bannerStyle: 'planned',
+        label: 'Course prête',
+        cta: 'Démarrer →',
+        href: { pathname: '/race/[id]', params: { id: race.id } },
+      };
+    case 'completed':
+      return {
+        bannerStyle: 'completed',
+        label: 'Dernière course',
+        cta: 'Voir le résumé →',
+        href: { pathname: '/race/[id]/summary', params: { id: race.id } },
+      };
+    case 'abandoned':
+      return {
+        bannerStyle: 'abandoned',
+        label: 'Dernière course (abandonnée)',
+        cta: 'Voir le résumé →',
+        href: { pathname: '/race/[id]/summary', params: { id: race.id } },
+      };
+  }
+}
+
 function ActiveRaceBanner({ race }: { race: Race }) {
-  const isInProgress = race.status === 'in_progress';
+  const variant = bannerVariant(race);
+  const bannerStyle =
+    variant.bannerStyle === 'in_progress'
+      ? styles.activeBannerInProgress
+      : variant.bannerStyle === 'completed'
+        ? styles.activeBannerCompleted
+        : variant.bannerStyle === 'abandoned'
+          ? styles.activeBannerAbandoned
+          : styles.activeBannerPlanned;
+  const labelStyle =
+    variant.bannerStyle === 'in_progress'
+      ? styles.activeLabelInProgress
+      : variant.bannerStyle === 'completed'
+        ? styles.activeLabelCompleted
+        : variant.bannerStyle === 'abandoned'
+          ? styles.activeLabelAbandoned
+          : styles.activeLabelPlanned;
   return (
     <TouchableOpacity
-      style={[styles.activeBanner, isInProgress && styles.activeBannerInProgress]}
-      onPress={() =>
-        router.push({ pathname: '/race/[id]', params: { id: race.id } })
-      }
+      style={[styles.activeBanner, bannerStyle]}
+      onPress={() => router.push(variant.href)}
       activeOpacity={0.8}
     >
-      <Text style={[styles.activeLabel, isInProgress && styles.activeLabelInProgress]}>
-        {isInProgress ? 'Course en cours' : 'Course prête'}
-      </Text>
+      <Text style={[styles.activeLabel, labelStyle]}>{variant.label}</Text>
       <Text style={styles.activeName}>{race.name ?? 'Sortie sans nom'}</Text>
-      <Text style={styles.activeCta}>
-        {isInProgress ? 'Reprendre →' : 'Démarrer →'}
-      </Text>
+      <Text style={styles.activeCta}>{variant.cta}</Text>
     </TouchableOpacity>
   );
 }
@@ -142,27 +201,45 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   activeBanner: {
-    backgroundColor: '#e8f5e9',
     borderLeftWidth: 4,
-    borderLeftColor: '#1f9d55',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
+  },
+  activeBannerPlanned: {
+    backgroundColor: '#e8f5e9',
+    borderLeftColor: '#1f9d55',
   },
   activeBannerInProgress: {
     backgroundColor: '#fff8e1',
     borderLeftColor: '#FF6B35',
   },
+  activeBannerCompleted: {
+    backgroundColor: '#e3f2fd',
+    borderLeftColor: '#0a7ea4',
+  },
+  activeBannerAbandoned: {
+    backgroundColor: '#fafafa',
+    borderLeftColor: '#999',
+  },
   activeLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1f7a32',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
+  activeLabelPlanned: {
+    color: '#1f7a32',
+  },
   activeLabelInProgress: {
     color: '#cc5200',
+  },
+  activeLabelCompleted: {
+    color: '#075f7d',
+  },
+  activeLabelAbandoned: {
+    color: '#666',
   },
   activeName: {
     fontSize: 18,

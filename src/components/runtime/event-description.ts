@@ -30,6 +30,15 @@ export function formatRelativeMinute(minute: number): string {
   return m === 0 ? `+${h}h` : `+${h}h${String(m).padStart(2, '0')}`;
 }
 
+/** "01:22:35" — chrono format from elapsed milliseconds. */
+export function formatChrono(elapsedMs: number): string {
+  const totalSec = Math.max(0, Math.floor(elapsedMs / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 // ─── Per-type description ──────────────────────────────────────────────────
 
 function describeIntake(

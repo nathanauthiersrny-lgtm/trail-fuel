@@ -1,12 +1,14 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  ToastAndroid,
   View,
 } from 'react-native';
 
@@ -15,6 +17,7 @@ import {
   describeEvent,
   EVENT_TYPE_COLOR,
   EVENT_TYPE_ICON,
+  formatChrono,
   formatRelativeMinute,
 } from '../components/runtime/event-description';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
@@ -35,16 +38,9 @@ import {
   NotificationPermissionDeniedError,
   startRace,
 } from '../services/race-runtime/start-race';
+import { verifyAndRescheduleIfNeeded } from '../services/race-runtime/watchdog';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatChrono(elapsedMs: number): string {
-  const totalSec = Math.max(0, Math.floor(elapsedMs / 1000));
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 
 function buildFoodItemMap(items: FoodItem[]): Map<string, FoodItem> {
   return new Map(items.map((f) => [f.id, f]));
@@ -262,6 +258,44 @@ function InProgressView({
   db,
   refresh,
 }: InProgressViewProps) {
+  const watchdogRanFor = useRef<string | null>(null);
+
+  // Watchdog: Android force-stop drops scheduled notifications. Run once per
+  // mount per race to detect missing notifs and reschedule them. Idempotent —
+  // a no-op when nothing is missing.
+  useEffect(() => {
+    if (watchdogRanFor.current === race.id) return;
+    watchdogRanFor.current = race.id;
+    void verifyAndRescheduleIfNeeded({
+      db,
+      race,
+      foodItemsById: Object.fromEntries(foodItemsById),
+      aidStationsById: Object.fromEntries(aidStationsById),
+      now: Date.now(),
+    })
+      .then((result) => {
+        if (result.rescheduled > 0) {
+          console.log(
+            `[watchdog] re-scheduled ${result.rescheduled}/${result.rescheduleAttempted} notifs (${result.aliveCount} were already alive)`,
+          );
+          if (Platform.OS === 'android') {
+            ToastAndroid.show(
+              `Notifs restaurées (${result.rescheduled})`,
+              ToastAndroid.SHORT,
+            );
+          }
+          void refresh();
+        } else if (result.failed > 0) {
+          console.warn(
+            `[watchdog] ${result.failed} reschedule failures, ${result.aliveCount} alive`,
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('[watchdog] failed', err);
+      });
+  }, [race, db, foodItemsById, aidStationsById, refresh]);
+
   const handleAction = useCallback(
     async (event: PersistedPlannedEvent, input: EventCardActionInput) => {
       try {
