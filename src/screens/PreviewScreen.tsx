@@ -84,7 +84,7 @@ export default function PreviewScreen() {
       await createRace(dbState.db, race);
       reset();
       ToastAndroid.show('Sortie créée !', ToastAndroid.SHORT);
-      router.replace('/');
+      router.replace({ pathname: '/race/[id]', params: { id: race.id } });
     } catch (err) {
       setSaving(false);
       Alert.alert('Erreur', `Impossible de créer la course : ${String(err)}`);
