@@ -10,6 +10,12 @@ import {
   View,
 } from 'react-native';
 
+import type { FoodItem } from '../../src/models/food-item';
+import type { PlannedEvent } from '../../src/models/planned-event';
+import { registerNotificationCategories } from '../../src/services/notifications/category';
+import { scheduleEventBatch } from '../../src/services/notifications/schedule-batch';
+import { ensurePermissionsAndChannels } from '../../src/services/notifications/setup';
+
 type LogEntry = { ts: string; line: string };
 
 export default function DevNotificationTest() {
@@ -108,6 +114,70 @@ export default function DevNotificationTest() {
     }
   };
 
+  const handleRunPipelineTest = async () => {
+    try {
+      const setup = await ensurePermissionsAndChannels();
+      append(`Setup: granted=${setup.permissionGranted}`);
+      await registerNotificationCategories();
+      append('Category intake_action registered');
+
+      const fakeFood: FoodItem = {
+        id: 'fake-gel-pipeline',
+        name: 'Test Gel',
+        type: 'gel',
+        carbs_g: 22,
+        sodium_mg: 30,
+        weight_g: 60,
+        is_seed: false,
+      };
+
+      const raceId = `pipeline-${Date.now()}`;
+      const events: PlannedEvent[] = [
+        {
+          id: `${raceId}::event-0`,
+          race_id: raceId,
+          scheduled_at_minute: 10 / 60,
+          type: 'intake',
+          payload: { food_item_id: fakeFood.id, quantity: 1 },
+        },
+        {
+          id: `${raceId}::event-1`,
+          race_id: raceId,
+          scheduled_at_minute: 20 / 60,
+          type: 'check_in',
+          payload: {},
+        },
+        {
+          id: `${raceId}::event-2`,
+          race_id: raceId,
+          scheduled_at_minute: 30 / 60,
+          type: 'fluid_reminder',
+          payload: { target_volume_ml: 250 },
+        },
+      ];
+
+      const now = Date.now();
+      const result = await scheduleEventBatch({
+        events,
+        foodItemsById: { [fakeFood.id]: fakeFood },
+        aidStationsById: {},
+        startedAt: now,
+        now,
+      });
+      append(
+        `Pipeline: scheduled=${result.scheduled.length} skipped=${result.skipped.length}`,
+      );
+      for (const s of result.scheduled) {
+        append(`  + ${s.event_id} → notif=${s.notification_id.slice(0, 8)}…`);
+      }
+      for (const s of result.skipped) {
+        append(`  - ${s.event_id} skipped: ${s.reason} (${s.detail ?? ''})`);
+      }
+    } catch (err) {
+      append(`Pipeline ERROR: ${String(err)}`);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Notif test — dev sandbox</Text>
@@ -122,6 +192,10 @@ export default function DevNotificationTest() {
       <Button label="4. Programmer 3 notifs en batch (10s, 20s, 30s)" onPress={handleScheduleBatch} />
       <Button label="5. Lister notifs programmées" onPress={handleListScheduled} />
       <Button label="6. Annuler toutes" onPress={handleCancelAll} variant="danger" />
+      <Button
+        label="7. Pipeline test (3 events @ +10/+20/+30s)"
+        onPress={handleRunPipelineTest}
+      />
 
       <Text style={styles.logTitle}>Log</Text>
       <View style={styles.logBox}>

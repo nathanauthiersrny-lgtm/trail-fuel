@@ -231,6 +231,17 @@ export async function updateRaceStatus(
   );
 }
 
+export async function updateScheduledNotificationIds(
+  db: SQLiteDatabase,
+  id: string,
+  ids: string[],
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE races SET scheduled_notification_ids_json = ? WHERE id = ?',
+    [JSON.stringify(ids), id],
+  );
+}
+
 export async function deleteRace(
   db: SQLiteDatabase,
   id: string,
