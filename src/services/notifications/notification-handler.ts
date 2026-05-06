@@ -32,6 +32,10 @@ async function handleResponse(response: NotifResponse): Promise<void> {
   if (handledResponseIds.has(responseId)) return;
   handledResponseIds.add(responseId);
 
+  // Une fois que l'utilisateur a interagi (tap action ou corps), la notif n'a plus
+  // sa place dans le shade. dismissNotificationAsync est best-effort et idempotent.
+  void Notifications.dismissNotificationAsync(responseId).catch(() => {});
+
   const data = extractData(response);
   if (!data) {
     console.warn('[notif-handler] response without event data, ignoring');

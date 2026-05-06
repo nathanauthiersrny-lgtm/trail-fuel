@@ -109,6 +109,51 @@ describe('generatePlan', () => {
     expect(firstIntake!.scheduled_at_minute).toBe(60);
   });
 
+  it('stress overrides: first_intake=1, interval=3 → multiple intakes early', () => {
+    // Cas du test runtime : on veut beaucoup de notifs rapprochées.
+    // Note : MERGE_WINDOW_MIN = 3, donc interval < 3 fusionne tout en 1 seul event.
+    const result = generatePlan({
+      profile: makeBaseProfile(),
+      race: makeBaseRace({
+        estimated_duration_min: 30,
+        distance_km: 5,
+        overrides: {
+          first_intake_after_min: 1,
+          intake_interval_min: 3,
+          check_in_frequency_min: 5,
+        },
+        inventory: [{ food_item_id: 'gel', quantity: 30 }],
+      }),
+      foodItems: [gel, water],
+      now: 0,
+    });
+    const intakes = result.events.filter((e) => e.type === 'intake');
+    const checkIns = result.events.filter((e) => e.type === 'check_in');
+    // Premier intake ≤ 3 min (collision-adjust peut décaler de quelques min)
+    expect(intakes[0].scheduled_at_minute).toBeLessThanOrEqual(3);
+    // ~10 intakes attendus (1, 4, 7, ..., 28). Quelques-uns peuvent être déplacés
+    // par la collision-resolution avec les check-ins, mais il en reste ≥ 5.
+    expect(intakes.length).toBeGreaterThanOrEqual(5);
+    expect(checkIns.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('clamps absurd overrides (e.g. interval=0) to safe bounds', () => {
+    const result = generatePlan({
+      profile: makeBaseProfile(),
+      race: makeBaseRace({
+        estimated_duration_min: 60,
+        distance_km: 10,
+        overrides: { intake_interval_min: 0, check_in_frequency_min: 0 },
+        inventory: [{ food_item_id: 'gel', quantity: 30 }],
+      }),
+      foodItems: [gel, water],
+      now: 0,
+    });
+    // Avec clamp 1 min, on ne doit pas avoir de boucle infinie.
+    expect(result.events.length).toBeGreaterThan(0);
+    expect(result.events.length).toBeLessThan(500);
+  });
+
   it('assigns deterministic ids prefixed with race_id', () => {
     const result = generatePlan({
       profile: makeBaseProfile(),

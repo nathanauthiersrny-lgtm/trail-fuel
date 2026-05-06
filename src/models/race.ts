@@ -17,6 +17,7 @@ export type RaceOverrides = {
   fluid_per_hour_ml?: number;
   first_intake_after_min?: number;
   check_in_frequency_min?: number;
+  intake_interval_min?: number;
 };
 
 export type PausedSegment = {

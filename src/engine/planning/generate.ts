@@ -15,6 +15,10 @@ import { resolveParams } from './resolve-params';
 import { buildTimeline } from './timeline';
 import { buildWindows } from './windows';
 
+// Plafond du warmup (mn) au-delà duquel placeIntakes ne pose rien. Réduit
+// uniquement par override `first_intake_after_min` plus petit.
+const PLACEMENT_WARMUP_CAP_MIN = 20;
+
 export type GeneratePlanInput = {
   profile: Profile;
   race: Race;
@@ -42,14 +46,25 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
     refillInNature: race.refill_in_nature,
   });
 
+  // Si l'override `first_intake_after_min` est plus petit que la fenêtre warmup
+  // par défaut (20 min), on abaisse le start des windows pour que placeIntakes
+  // puisse réellement placer un intake avant la minute 20.
+  const firstWindowStartMin = Math.min(
+    PLACEMENT_WARMUP_CAP_MIN,
+    params.first_intake_after_min,
+  );
+
   const windows = buildWindows({
     totalDurationMin: timeline.totalDurationMin,
     gpxTrack: race.gpx_track,
+    firstWindowStartMin,
   });
 
+  // first_intake_after_min sert aussi de "warmup" pour les check-ins. Avant, c'était
+  // hardcodé à 30 ; on aligne sur le param pour qu'un override flow correctement.
   const checkInDrafts = buildCheckIns({
     totalDurationMin: timeline.totalDurationMin,
-    firstCheckInMin: 30,
+    firstCheckInMin: params.first_intake_after_min,
     frequencyMin: params.check_in_frequency_min,
   });
 
@@ -59,6 +74,7 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
     totalDurationMin: timeline.totalDurationMin,
     foodItems,
     inventory: race.inventory,
+    intakeIntervalMin: params.intake_interval_min,
   });
 
   const fluidDrafts = placeFluidReminders({

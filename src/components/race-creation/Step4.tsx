@@ -114,6 +114,16 @@ export function Step4({ draft, updateDraft }: Props) {
               })
             }
           />
+          <OverrideField
+            label="Intervalle entre intakes (min, ≥3 recommandé)"
+            placeholder="20"
+            value={draft.overrides?.intake_interval_min ?? null}
+            onChange={(v) =>
+              updateDraft({
+                overrides: { ...draft.overrides, intake_interval_min: v ?? undefined },
+              })
+            }
+          />
 
           <TouchableOpacity
             style={styles.resetOverrides}

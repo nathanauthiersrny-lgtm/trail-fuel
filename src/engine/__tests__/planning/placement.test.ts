@@ -11,6 +11,7 @@ const baseParams: ResolvedParams = {
   sodium_per_hour_mg: 500,
   first_intake_after_min: 30,
   check_in_frequency_min: 50,
+  intake_interval_min: 20,
   skip_alert_threshold: 2,
   deficit_alert_pct: 0.30,
   intensity: 'moderate',

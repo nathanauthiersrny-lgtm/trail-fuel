@@ -7,6 +7,8 @@ import type { PlanningWindow } from './windows';
 
 const HIGH_SLOPE_THRESHOLD = 0.10;
 const LOW_SLOPE_THRESHOLD = -0.08;
+// Default fallback only — generate.ts passe désormais params.intake_interval_min.
+// TODO(post-trail 2026-05-10): retirer ce fallback une fois resolve-params stabilisé.
 const DEFAULT_INTAKE_INTERVAL_MIN = 20;
 
 const ALL_SOLID_KINDS: FoodItemKind[] = ['gel', 'bar', 'real_food'];

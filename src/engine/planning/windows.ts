@@ -13,18 +13,22 @@ export function buildWindows(input: {
   totalDurationMin: number;
   gpxTrack?: GPXTrack;
   windowSizeMin?: number;
+  firstWindowStartMin?: number;
 }): PlanningWindow[] {
   const { totalDurationMin, gpxTrack } = input;
   const windowSize = input.windowSizeMin ?? DEFAULT_WINDOW_SIZE_MIN;
+  // Sémantique préservée : par défaut, on skip une fenêtre warmup égale à windowSize.
+  // generate.ts passe explicitement firstWindowStartMin pour respecter l'override
+  // first_intake_after_min < 20.
+  const firstStart = Math.max(0, input.firstWindowStartMin ?? windowSize);
 
-  if (totalDurationMin <= windowSize) return [];
+  if (totalDurationMin <= firstStart) return [];
 
   const segments = gpxTrack?.segments ?? [];
   const windows: PlanningWindow[] = [];
 
-  // Skip the first window (démarrage). Start emitting from window index 1.
   let index = 1;
-  let startMin = windowSize;
+  let startMin = firstStart;
 
   while (startMin < totalDurationMin) {
     const endMin = Math.min(startMin + windowSize, totalDurationMin);

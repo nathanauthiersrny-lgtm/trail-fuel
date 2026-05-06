@@ -7,6 +7,7 @@ export type ResolvedParams = {
   sodium_per_hour_mg: number;
   first_intake_after_min: number;
   check_in_frequency_min: number;
+  intake_interval_min: number;
   skip_alert_threshold: number;
   deficit_alert_pct: number;
   intensity: Intensity;
@@ -64,6 +65,17 @@ const SODIUM_FLOOR_MG = 300;
 const SODIUM_CEILING_MG = 1000;
 
 const DEFAULT_FIRST_INTAKE_AFTER_MIN = 30;
+const DEFAULT_INTAKE_INTERVAL_MIN = 20;
+
+// Bornes de sécurité pour les overrides — évite des valeurs absurdes (0, négatives, ou
+// trop grandes) qui casseraient les boucles de placement (placeIntakes itère par pas de
+// intake_interval_min, et buildCheckIns par check_in_frequency_min).
+const FIRST_INTAKE_MIN = 0;
+const FIRST_INTAKE_MAX = 240;
+const INTAKE_INTERVAL_MIN = 1;
+const INTAKE_INTERVAL_MAX = 60;
+const CHECK_IN_FREQ_MIN = 1;
+const CHECK_IN_FREQ_MAX = 120;
 
 function applyFluidModifiers(baseFluid: number, race: Race): number {
   let fluid = baseFluid;
@@ -121,14 +133,17 @@ export function resolveParams(input: {
     overrides.fluid_per_hour_ml ?? applyFluidModifiers(profile.fluid_per_hour_ml, race);
   const sodium = applySodiumModifiers(profile.sodium_per_hour_mg, race, durationMin);
 
+  const firstIntakeRaw = overrides.first_intake_after_min ?? DEFAULT_FIRST_INTAKE_AFTER_MIN;
+  const checkInFreqRaw = overrides.check_in_frequency_min ?? defaults.check_in_freq_min;
+  const intakeIntervalRaw = overrides.intake_interval_min ?? DEFAULT_INTAKE_INTERVAL_MIN;
+
   return {
     carbs_per_hour_g: carbs,
     fluid_per_hour_ml: fluid,
     sodium_per_hour_mg: sodium,
-    first_intake_after_min:
-      overrides.first_intake_after_min ?? DEFAULT_FIRST_INTAKE_AFTER_MIN,
-    check_in_frequency_min:
-      overrides.check_in_frequency_min ?? defaults.check_in_freq_min,
+    first_intake_after_min: clamp(firstIntakeRaw, FIRST_INTAKE_MIN, FIRST_INTAKE_MAX),
+    check_in_frequency_min: clamp(checkInFreqRaw, CHECK_IN_FREQ_MIN, CHECK_IN_FREQ_MAX),
+    intake_interval_min: clamp(intakeIntervalRaw, INTAKE_INTERVAL_MIN, INTAKE_INTERVAL_MAX),
     skip_alert_threshold: defaults.skip_alert_threshold,
     deficit_alert_pct: defaults.deficit_alert_pct,
     intensity: race.intensity ?? defaults.intensity,
