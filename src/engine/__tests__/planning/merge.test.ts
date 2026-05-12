@@ -1,5 +1,10 @@
 import type { DraftEvent } from '../../planning/check-ins';
-import { mergeEvents, MERGE_WINDOW_MIN } from '../../planning/merge';
+import {
+  FLUID_INTAKE_OFFSET_MIN,
+  MERGE_WINDOW_MIN,
+  mergeEvents,
+  offsetFluidsNearIntakes,
+} from '../../planning/merge';
 
 const intake = (minute: number, foodId: string): DraftEvent => ({
   scheduled_at_minute: minute,
@@ -140,5 +145,86 @@ describe('mergeEvents', () => {
   it('does NOT merge a fluid_reminder with an intake within the merge window', () => {
     const out = mergeEvents([intake(30, 'gel'), fluidReminder(31, 250)]);
     expect(out).toHaveLength(2);
+  });
+});
+
+describe('offsetFluidsNearIntakes', () => {
+  it('exposes FLUID_INTAKE_OFFSET_MIN = 2', () => {
+    expect(FLUID_INTAKE_OFFSET_MIN).toBe(2);
+  });
+
+  it('leaves fluid_reminders unchanged when no intake is nearby', () => {
+    const events = [fluidReminder(15, 250), fluidReminder(45, 250)];
+    const out = offsetFluidsNearIntakes(events);
+    expect(out.map((e) => e.scheduled_at_minute)).toEqual([15, 45]);
+  });
+
+  it('leaves intakes unchanged', () => {
+    const events = [intake(30, 'gel'), intake(50, 'bar'), fluidReminder(80, 250)];
+    const out = offsetFluidsNearIntakes(events);
+    const intakes = out.filter((e) => e.type === 'intake');
+    expect(intakes.map((e) => e.scheduled_at_minute)).toEqual([30, 50]);
+  });
+
+  it('shifts a fluid_reminder colliding with an intake to intake_time + 2', () => {
+    const out = offsetFluidsNearIntakes([intake(30, 'gel'), fluidReminder(31, 250)]);
+    const fluid = out.find((e) => e.type === 'fluid_reminder')!;
+    expect(fluid.scheduled_at_minute).toBe(32);
+  });
+
+  it('shifts even when the fluid is BEFORE the intake (1 min earlier)', () => {
+    const out = offsetFluidsNearIntakes([intake(30, 'gel'), fluidReminder(29, 250)]);
+    const fluid = out.find((e) => e.type === 'fluid_reminder')!;
+    expect(fluid.scheduled_at_minute).toBe(32);
+  });
+
+  it('does NOT shift when the fluid is exactly MERGE_WINDOW_MIN away (strict <)', () => {
+    // intake@30, fluid@33 → distance = 3 = MERGE_WINDOW_MIN → not "near"
+    const out = offsetFluidsNearIntakes([intake(30, 'gel'), fluidReminder(33, 250)]);
+    const fluid = out.find((e) => e.type === 'fluid_reminder')!;
+    expect(fluid.scheduled_at_minute).toBe(33);
+  });
+
+  it('shifts to the CLOSEST nearby intake (not the first one found)', () => {
+    // intakes@28 and @33, fluid@32 → closer to 33 (dist 1) than 28 (dist 4)
+    const out = offsetFluidsNearIntakes([
+      intake(28, 'gel'),
+      intake(33, 'bar'),
+      fluidReminder(32, 250),
+    ]);
+    const fluid = out.find((e) => e.type === 'fluid_reminder')!;
+    expect(fluid.scheduled_at_minute).toBe(35);
+  });
+
+  it('returns events sorted by scheduled_at_minute after shifting', () => {
+    const out = offsetFluidsNearIntakes([
+      intake(30, 'gel'),
+      fluidReminder(29, 250), // → 32
+      intake(40, 'bar'),
+    ]);
+    const times = out.map((e) => e.scheduled_at_minute);
+    expect(times).toEqual([...times].sort((a, b) => a - b));
+  });
+
+  it('handles multiple fluid_reminders, shifting only those colliding', () => {
+    const out = offsetFluidsNearIntakes([
+      intake(30, 'gel'),
+      fluidReminder(15, 250), // far → unchanged
+      fluidReminder(31, 250), // collides → 32
+      fluidReminder(60, 250), // far → unchanged
+    ]);
+    const fluidTimes = out
+      .filter((e) => e.type === 'fluid_reminder')
+      .map((e) => e.scheduled_at_minute);
+    expect(fluidTimes.sort((a, b) => a - b)).toEqual([15, 32, 60]);
+  });
+
+  it('preserves the fluid_reminder payload after shifting', () => {
+    const out = offsetFluidsNearIntakes([
+      intake(30, 'gel'),
+      fluidReminder(31, 250),
+    ]);
+    const fluid = out.find((e) => e.type === 'fluid_reminder')!;
+    expect(fluid.payload).toEqual({ target_volume_ml: 250 });
   });
 });

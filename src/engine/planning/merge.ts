@@ -3,6 +3,10 @@ import type { IntakeItem } from '../../models/planned-event';
 import type { DraftEvent } from './check-ins';
 
 export const MERGE_WINDOW_MIN = 3;
+// 2.B : quand un fluid_reminder tombe à < MERGE_WINDOW_MIN d'un intake, on le décale
+// après l'intake pour éviter une notif solide+boisson simultanée (mâcher + boire en
+// même temps est désagréable en course longue).
+export const FLUID_INTAKE_OFFSET_MIN = 2;
 
 export function mergeEvents(events: DraftEvent[]): DraftEvent[] {
   if (events.length === 0) return [];
@@ -48,6 +52,35 @@ function mergeGroup(group: DraftEvent[]): DraftEvent[] {
   if (intakes.length === 1) out.push(intakes[0]);
   else if (intakes.length > 1) out.push(mergeIntakes(intakes));
   return out;
+}
+
+export function offsetFluidsNearIntakes(events: DraftEvent[]): DraftEvent[] {
+  const intakeTimes = events
+    .filter((e) => e.type === 'intake')
+    .map((e) => e.scheduled_at_minute);
+  if (intakeTimes.length === 0) return events;
+
+  const shifted = events.map((ev) => {
+    if (ev.type !== 'fluid_reminder') return ev;
+    const nearby = findClosestIntakeTime(ev.scheduled_at_minute, intakeTimes);
+    if (nearby === null) return ev;
+    return { ...ev, scheduled_at_minute: nearby + FLUID_INTAKE_OFFSET_MIN };
+  });
+
+  return shifted.sort((a, b) => a.scheduled_at_minute - b.scheduled_at_minute);
+}
+
+function findClosestIntakeTime(fluidMin: number, intakeTimes: number[]): number | null {
+  let best: number | null = null;
+  let bestDist = MERGE_WINDOW_MIN;
+  for (const t of intakeTimes) {
+    const dist = Math.abs(t - fluidMin);
+    if (dist < bestDist) {
+      best = t;
+      bestDist = dist;
+    }
+  }
+  return best;
 }
 
 function mergeIntakes(intakes: DraftEvent[]): DraftEvent {

@@ -8,7 +8,7 @@ import { buildAidStationEvents } from './aid-stations';
 import type { DraftEvent } from './check-ins';
 import { buildCheckIns } from './check-ins';
 import { placeFluidReminders } from './fluid-reminders';
-import { mergeEvents } from './merge';
+import { mergeEvents, offsetFluidsNearIntakes } from './merge';
 import { computeEffectiveRates } from './needs';
 import { placeIntakes } from './placement';
 import { resolveParams } from './resolve-params';
@@ -91,7 +91,8 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
   });
 
   const merged = mergeEvents([...intakeDrafts, ...checkInDrafts, ...fluidDrafts, ...aidDrafts]);
-  const adjusted = adjustCollisions(merged);
+  const offset = offsetFluidsNearIntakes(merged);
+  const adjusted = adjustCollisions(offset);
   const sorted = [...adjusted].sort((a, b) => a.scheduled_at_minute - b.scheduled_at_minute);
   const events = assignIds(sorted, race.id);
 
