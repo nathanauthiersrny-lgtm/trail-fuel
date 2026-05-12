@@ -19,6 +19,8 @@ export default function RootLayout() {
         <Stack.Screen name="race-preview" options={{ title: 'Aperçu' }} />
         <Stack.Screen name="race/[id]/index" options={{ title: 'Course' }} />
         <Stack.Screen name="race/[id]/summary" options={{ title: 'Résumé' }} />
+        <Stack.Screen name="settings/index" options={{ title: 'Paramètres' }} />
+        <Stack.Screen name="settings/rules" options={{ title: 'Règles nutritionnelles' }} />
         <Stack.Screen name="dev/notification-test" options={{ title: 'Notif test' }} />
       </Stack>
       <StatusBar style="auto" />

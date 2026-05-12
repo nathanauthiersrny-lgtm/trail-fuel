@@ -60,6 +60,9 @@ export default function HomeScreen() {
         <Link href="/food-items" style={styles.link}>
           → Bibliothèque FoodItem
         </Link>
+        <Link href="/settings" style={styles.link}>
+          → Paramètres
+        </Link>
       </View>
 
       {__DEV__ ? (

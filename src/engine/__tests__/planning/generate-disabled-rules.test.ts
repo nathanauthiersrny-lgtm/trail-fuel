@@ -10,7 +10,7 @@ describe('generatePlan — disabled_rule_ids', () => {
       humidity_high: true,
       refill_in_nature: true,
       inventory: [],
-    } as const;
+    };
 
     const enabled = generatePlan({
       profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
