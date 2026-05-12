@@ -11,6 +11,7 @@ export function makeBaseProfile(overrides: Partial<Profile> = {}): Profile {
     flat_pace_min_per_km: 6,
     pace_calibration_factor: 1.0,
     preferences: { gel_tolerance: 'medium', solid_food_tolerance: 'medium' },
+    disabled_rule_ids: [],
     updated_at: 0,
     ...overrides,
   };

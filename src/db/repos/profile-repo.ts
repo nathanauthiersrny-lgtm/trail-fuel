@@ -13,10 +13,20 @@ type ProfileRow = {
   pace_calibration_factor: number;
   gel_tolerance: 'high' | 'medium' | 'low';
   solid_food_tolerance: 'high' | 'medium' | 'low';
+  disabled_rule_ids: string;
   updated_at: number;
 };
 
 function rowToProfile(row: ProfileRow): Profile {
+  let disabledIds: string[] = [];
+  try {
+    const parsed = JSON.parse(row.disabled_rule_ids ?? '[]');
+    if (Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')) {
+      disabledIds = parsed;
+    }
+  } catch {
+    // Corrupted JSON → treat as empty (no rules disabled).
+  }
   return {
     id: row.id,
     weight_kg: row.weight_kg,
@@ -29,6 +39,7 @@ function rowToProfile(row: ProfileRow): Profile {
       gel_tolerance: row.gel_tolerance,
       solid_food_tolerance: row.solid_food_tolerance,
     },
+    disabled_rule_ids: disabledIds,
     updated_at: row.updated_at,
   };
 }
@@ -46,8 +57,8 @@ export async function getOrCreateProfile(
     `INSERT INTO profiles
       (weight_kg, carbs_per_hour_g, fluid_per_hour_ml, sodium_per_hour_mg,
        flat_pace_min_per_km, pace_calibration_factor,
-       gel_tolerance, solid_food_tolerance, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       gel_tolerance, solid_food_tolerance, disabled_rule_ids, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       DEFAULT_PROFILE.weight_kg,
       DEFAULT_PROFILE.carbs_per_hour_g,
@@ -57,6 +68,7 @@ export async function getOrCreateProfile(
       DEFAULT_PROFILE.pace_calibration_factor,
       DEFAULT_PROFILE.preferences.gel_tolerance,
       DEFAULT_PROFILE.preferences.solid_food_tolerance,
+      JSON.stringify(DEFAULT_PROFILE.disabled_rule_ids),
       now,
     ],
   );
@@ -78,7 +90,7 @@ export async function updateProfile(
        weight_kg = ?, carbs_per_hour_g = ?, fluid_per_hour_ml = ?,
        sodium_per_hour_mg = ?, flat_pace_min_per_km = ?,
        pace_calibration_factor = ?, gel_tolerance = ?,
-       solid_food_tolerance = ?, updated_at = ?
+       solid_food_tolerance = ?, disabled_rule_ids = ?, updated_at = ?
      WHERE id = ?`,
     [
       profile.weight_kg,
@@ -89,6 +101,7 @@ export async function updateProfile(
       profile.pace_calibration_factor,
       profile.preferences.gel_tolerance,
       profile.preferences.solid_food_tolerance,
+      JSON.stringify(profile.disabled_rule_ids),
       now,
       profile.id,
     ],

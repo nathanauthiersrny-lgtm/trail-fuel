@@ -15,6 +15,12 @@ export type Profile = {
   flat_pace_min_per_km: number;
   pace_calibration_factor: number;
   preferences: ProfilePreferences;
+  /**
+   * IDs of knowledge-pack rules the user has explicitly disabled. Generator
+   * skips these rules when building plans. Empty array = all base+overlay
+   * rules active. Persisted as JSON in the profile row.
+   */
+  disabled_rule_ids: string[];
   updated_at: number;
 };
 
@@ -29,4 +35,5 @@ export const DEFAULT_PROFILE: Omit<Profile, 'id' | 'updated_at'> = {
     gel_tolerance: 'medium',
     solid_food_tolerance: 'medium',
   },
+  disabled_rule_ids: [],
 };

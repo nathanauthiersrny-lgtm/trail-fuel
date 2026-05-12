@@ -36,7 +36,12 @@ export type GeneratePlanResult = {
 };
 
 export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
-  const { profile, race, foodItems, pack } = input;
+  const { profile, race, foodItems, pack: rawPack } = input;
+
+  // Apply the user's per-rule toggles : disabled rules are filtered out of the
+  // pack BEFORE any engine step sees it. resolveParams, placeIntakes, etc.
+  // operate on the filtered pack and never need to know about the toggle list.
+  const pack = filterDisabledRules(rawPack, profile.disabled_rule_ids);
 
   const timeline = buildTimeline(race);
   const params = resolveParams({ profile, race, durationMin: timeline.totalDurationMin, pack });
@@ -108,6 +113,12 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
   const warnings = buildRationingWarnings(rates);
 
   return { events, warnings };
+}
+
+function filterDisabledRules(pack: KnowledgePack, disabledIds: string[]): KnowledgePack {
+  if (disabledIds.length === 0) return pack;
+  const disabled = new Set(disabledIds);
+  return { ...pack, rules: pack.rules.filter((r) => !disabled.has(r.id)) };
 }
 
 function buildRationingWarnings(rates: ReturnType<typeof computeEffectiveRates>): PlanWarning[] {
