@@ -11,6 +11,8 @@ const baseParams: ResolvedParams = {
   first_intake_after_min: 30,
   check_in_frequency_min: 50,
   intake_interval_min: 20,
+  first_fluid_reminder_min: 15,
+  fluid_reminder_interval_min: 30,
   skip_alert_threshold: 2,
   deficit_alert_pct: 0.30,
   intensity: 'moderate',

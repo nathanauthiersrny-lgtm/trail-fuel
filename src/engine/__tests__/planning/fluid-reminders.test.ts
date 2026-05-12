@@ -1,14 +1,12 @@
-import {
-  FIRST_FLUID_REMINDER_MIN,
-  FLUID_REMINDER_INTERVAL_MIN,
-  placeFluidReminders,
-} from '../../planning/fluid-reminders';
+import { placeFluidReminders } from '../../planning/fluid-reminders';
 
 describe('placeFluidReminders', () => {
-  it('places reminders at T+15, T+45, T+75... for a 3h flat course', () => {
+  it('places reminders at T+15, T+45, T+75... for a 3h flat course with defaults', () => {
     const events = placeFluidReminders({
       effectiveFluidPerH: 500,
       totalDurationMin: 180,
+      firstReminderMin: 15,
+      intervalMin: 30,
     });
     expect(events.map((e) => e.scheduled_at_minute)).toEqual([
       15, 45, 75, 105, 135, 165,
@@ -16,10 +14,12 @@ describe('placeFluidReminders', () => {
     expect(events.every((e) => e.type === 'fluid_reminder')).toBe(true);
   });
 
-  it('computes volume per reminder as effectiveFluidPerH × 0.5', () => {
+  it('computes volume per reminder as effectiveFluidPerH × (intervalMin / 60)', () => {
     const events = placeFluidReminders({
       effectiveFluidPerH: 500,
       totalDurationMin: 180,
+      firstReminderMin: 15,
+      intervalMin: 30,
     });
     // 500 ml/h × (30/60) = 250 ml per reminder
     for (const ev of events) {
@@ -28,10 +28,11 @@ describe('placeFluidReminders', () => {
   });
 
   it('uses rationed rate when fluid is insufficient', () => {
-    // Effective rate reduced to 300 ml/h → 300 × 0.5 = 150 ml per reminder
     const events = placeFluidReminders({
       effectiveFluidPerH: 300,
       totalDurationMin: 180,
+      firstReminderMin: 15,
+      intervalMin: 30,
     });
     for (const ev of events) {
       expect(ev.payload.target_volume_ml).toBe(150);
@@ -42,6 +43,8 @@ describe('placeFluidReminders', () => {
     const events = placeFluidReminders({
       effectiveFluidPerH: 500,
       totalDurationMin: 90,
+      firstReminderMin: 15,
+      intervalMin: 30,
     });
     expect(events.map((e) => e.scheduled_at_minute)).toEqual([15, 45, 75]);
     expect(events.every((e) => e.scheduled_at_minute < 90)).toBe(true);
@@ -51,12 +54,43 @@ describe('placeFluidReminders', () => {
     const events = placeFluidReminders({
       effectiveFluidPerH: 0,
       totalDurationMin: 180,
+      firstReminderMin: 15,
+      intervalMin: 30,
     });
     expect(events).toEqual([]);
   });
 
-  it('exposes FIRST_FLUID_REMINDER_MIN = 15 and FLUID_REMINDER_INTERVAL_MIN = 30', () => {
-    expect(FIRST_FLUID_REMINDER_MIN).toBe(15);
-    expect(FLUID_REMINDER_INTERVAL_MIN).toBe(30);
+  it('honours custom firstReminderMin (e.g. start earlier)', () => {
+    const events = placeFluidReminders({
+      effectiveFluidPerH: 500,
+      totalDurationMin: 120,
+      firstReminderMin: 5,
+      intervalMin: 30,
+    });
+    expect(events.map((e) => e.scheduled_at_minute)).toEqual([5, 35, 65, 95]);
+  });
+
+  it('honours custom intervalMin (e.g. tighter cadence, smaller volume)', () => {
+    const events = placeFluidReminders({
+      effectiveFluidPerH: 600,
+      totalDurationMin: 60,
+      firstReminderMin: 10,
+      intervalMin: 20,
+    });
+    expect(events.map((e) => e.scheduled_at_minute)).toEqual([10, 30, 50]);
+    // 600 × (20/60) = 200 ml per reminder
+    for (const ev of events) {
+      expect(ev.payload.target_volume_ml).toBe(200);
+    }
+  });
+
+  it('returns empty array when intervalMin is 0 (guards against infinite loop)', () => {
+    const events = placeFluidReminders({
+      effectiveFluidPerH: 500,
+      totalDurationMin: 180,
+      firstReminderMin: 15,
+      intervalMin: 0,
+    });
+    expect(events).toEqual([]);
   });
 });

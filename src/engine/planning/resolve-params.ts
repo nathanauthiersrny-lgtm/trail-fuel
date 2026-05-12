@@ -8,6 +8,8 @@ export type ResolvedParams = {
   first_intake_after_min: number;
   check_in_frequency_min: number;
   intake_interval_min: number;
+  first_fluid_reminder_min: number;
+  fluid_reminder_interval_min: number;
   skip_alert_threshold: number;
   deficit_alert_pct: number;
   intensity: Intensity;
@@ -66,6 +68,8 @@ const SODIUM_CEILING_MG = 1000;
 
 const DEFAULT_FIRST_INTAKE_AFTER_MIN = 30;
 const DEFAULT_INTAKE_INTERVAL_MIN = 20;
+const DEFAULT_FIRST_FLUID_REMINDER_MIN = 15;
+const DEFAULT_FLUID_REMINDER_INTERVAL_MIN = 30;
 
 // Bornes de sécurité pour les overrides — évite des valeurs absurdes (0, négatives, ou
 // trop grandes) qui casseraient les boucles de placement (placeIntakes itère par pas de
@@ -76,6 +80,10 @@ const INTAKE_INTERVAL_MIN = 1;
 const INTAKE_INTERVAL_MAX = 60;
 const CHECK_IN_FREQ_MIN = 1;
 const CHECK_IN_FREQ_MAX = 120;
+const FIRST_FLUID_REMINDER_FLOOR = 0;
+const FIRST_FLUID_REMINDER_CEIL = 240;
+const FLUID_REMINDER_INTERVAL_FLOOR = 1;
+const FLUID_REMINDER_INTERVAL_CEIL = 120;
 
 function applyFluidModifiers(baseFluid: number, race: Race): number {
   let fluid = baseFluid;
@@ -136,6 +144,10 @@ export function resolveParams(input: {
   const firstIntakeRaw = overrides.first_intake_after_min ?? DEFAULT_FIRST_INTAKE_AFTER_MIN;
   const checkInFreqRaw = overrides.check_in_frequency_min ?? defaults.check_in_freq_min;
   const intakeIntervalRaw = overrides.intake_interval_min ?? DEFAULT_INTAKE_INTERVAL_MIN;
+  const firstFluidRaw =
+    overrides.first_fluid_reminder_min ?? DEFAULT_FIRST_FLUID_REMINDER_MIN;
+  const fluidIntervalRaw =
+    overrides.fluid_reminder_interval_min ?? DEFAULT_FLUID_REMINDER_INTERVAL_MIN;
 
   return {
     carbs_per_hour_g: carbs,
@@ -144,6 +156,16 @@ export function resolveParams(input: {
     first_intake_after_min: clamp(firstIntakeRaw, FIRST_INTAKE_MIN, FIRST_INTAKE_MAX),
     check_in_frequency_min: clamp(checkInFreqRaw, CHECK_IN_FREQ_MIN, CHECK_IN_FREQ_MAX),
     intake_interval_min: clamp(intakeIntervalRaw, INTAKE_INTERVAL_MIN, INTAKE_INTERVAL_MAX),
+    first_fluid_reminder_min: clamp(
+      firstFluidRaw,
+      FIRST_FLUID_REMINDER_FLOOR,
+      FIRST_FLUID_REMINDER_CEIL,
+    ),
+    fluid_reminder_interval_min: clamp(
+      fluidIntervalRaw,
+      FLUID_REMINDER_INTERVAL_FLOOR,
+      FLUID_REMINDER_INTERVAL_CEIL,
+    ),
     skip_alert_threshold: defaults.skip_alert_threshold,
     deficit_alert_pct: defaults.deficit_alert_pct,
     intensity: race.intensity ?? defaults.intensity,

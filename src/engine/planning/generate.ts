@@ -80,6 +80,8 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
   const fluidDrafts = placeFluidReminders({
     effectiveFluidPerH: rates.effective.fluid_per_hour_ml,
     totalDurationMin: timeline.totalDurationMin,
+    firstReminderMin: params.first_fluid_reminder_min,
+    intervalMin: params.fluid_reminder_interval_min,
   });
 
   const aidDrafts = buildAidStationEvents({

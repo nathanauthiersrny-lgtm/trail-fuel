@@ -229,4 +229,66 @@ describe('resolveParams', () => {
       expect(params.first_intake_after_min).toBe(20);
     });
   });
+
+  describe('fluid reminders', () => {
+    it('defaults to first_fluid_reminder_min=15 and fluid_reminder_interval_min=30', () => {
+      const params = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace(),
+        durationMin: 180,
+      });
+      expect(params.first_fluid_reminder_min).toBe(15);
+      expect(params.fluid_reminder_interval_min).toBe(30);
+    });
+
+    it('respects the first_fluid_reminder_min override', () => {
+      const params = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { first_fluid_reminder_min: 5 } }),
+        durationMin: 180,
+      });
+      expect(params.first_fluid_reminder_min).toBe(5);
+    });
+
+    it('respects the fluid_reminder_interval_min override', () => {
+      const params = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 20 } }),
+        durationMin: 180,
+      });
+      expect(params.fluid_reminder_interval_min).toBe(20);
+    });
+
+    it('clamps first_fluid_reminder_min into [0..240]', () => {
+      const tooLow = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { first_fluid_reminder_min: -10 } }),
+        durationMin: 180,
+      });
+      expect(tooLow.first_fluid_reminder_min).toBe(0);
+
+      const tooHigh = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { first_fluid_reminder_min: 999 } }),
+        durationMin: 180,
+      });
+      expect(tooHigh.first_fluid_reminder_min).toBe(240);
+    });
+
+    it('clamps fluid_reminder_interval_min into [1..120]', () => {
+      const tooLow = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 0 } }),
+        durationMin: 180,
+      });
+      expect(tooLow.fluid_reminder_interval_min).toBe(1);
+
+      const tooHigh = resolveParams({
+        profile: makeBaseProfile(),
+        race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 999 } }),
+        durationMin: 180,
+      });
+      expect(tooHigh.fluid_reminder_interval_min).toBe(120);
+    });
+  });
 });

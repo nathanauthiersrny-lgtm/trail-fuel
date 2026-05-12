@@ -18,6 +18,8 @@ export type RaceOverrides = {
   first_intake_after_min?: number;
   check_in_frequency_min?: number;
   intake_interval_min?: number;
+  first_fluid_reminder_min?: number;
+  fluid_reminder_interval_min?: number;
 };
 
 export type PausedSegment = {
