@@ -5,60 +5,72 @@ import { validateRuleList } from '../../engine/rules/validate';
 import {
   SUPPORTED_PACK_MAJOR,
   type KnowledgePack,
+  type KnowledgePackOverlay,
 } from '../../models/knowledge-pack';
 
-const OVERRIDE_FILENAME = 'knowledge-pack.json';
+import { mergeKnowledgePack } from './merge';
+
+const OVERLAY_FILENAME = 'knowledge-pack.json';
 
 /**
- * Loads the active knowledge pack. Looks first in the app's document directory
- * for a user-overridden file (pushed by the future web companion / by hand),
- * falling back to the bundled v1 pack shipped with the binary.
+ * Loads the active knowledge pack. Always loads the bundled v1 baseline,
+ * then deep-merges an optional override file from the app's document directory
+ * if one exists (and parses cleanly with a compatible major version).
  *
- * Any unreadable, malformed, or major-version-mismatched override is silently
- * ignored — we always have the bundle as a safe baseline.
- *
- * Rules are validated and individually filtered: an invalid rule is logged and
- * skipped, but doesn't poison the rest of the pack.
+ * The override file is a PARTIAL overlay : only the fields it specifies get
+ * merged into the base. Rules merge by id (overlay replaces base on same id,
+ * or appends as new). Invalid rules are filtered with a warning rather than
+ * crashing the pack.
  */
 export async function loadKnowledgePack(): Promise<KnowledgePack> {
-  const overridden = await tryLoadOverride();
-  if (overridden) return overridden;
-  return finalizePack(bundledPackV1, 'bundle');
+  const base = finalizeBundle();
+  const overlay = await tryLoadOverlay();
+  if (!overlay) return base;
+  return mergeKnowledgePack(base, overlay);
 }
 
-async function tryLoadOverride(): Promise<KnowledgePack | null> {
-  try {
-    const file = new File(Paths.document, OVERRIDE_FILENAME);
-    if (!file.exists) return null;
-    const raw = await file.text();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isValidPackEnvelope(parsed)) {
-      console.warn('[knowledge-pack] override invalid, falling back to bundle');
-      return null;
-    }
-    return finalizePack(parsed as Record<string, unknown>, 'override');
-  } catch (err) {
-    console.warn('[knowledge-pack] override load failed, falling back to bundle', err);
-    return null;
-  }
-}
-
-function finalizePack(
-  raw: Record<string, unknown>,
-  origin: 'bundle' | 'override',
-): KnowledgePack {
+function finalizeBundle(): KnowledgePack {
+  const raw = bundledPackV1 as Record<string, unknown>;
   const rawRules = Array.isArray(raw.rules) ? raw.rules : [];
   const { rules, errors } = validateRuleList(rawRules);
   if (errors.length > 0) {
-    console.warn(
-      `[knowledge-pack:${origin}] dropped ${errors.length} invalid rule(s):`,
-      errors,
-    );
+    console.warn('[knowledge-pack:bundle] invalid rules in v1.json:', errors);
   }
   return { ...(raw as Omit<KnowledgePack, 'rules'>), rules };
 }
 
-function isValidPackEnvelope(value: unknown): boolean {
+async function tryLoadOverlay(): Promise<KnowledgePackOverlay | null> {
+  try {
+    const file = new File(Paths.document, OVERLAY_FILENAME);
+    if (!file.exists) return null;
+    const raw = await file.text();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isValidOverlayEnvelope(parsed)) {
+      console.warn('[knowledge-pack:overlay] invalid envelope, falling back to bundle only');
+      return null;
+    }
+    return finalizeOverlay(parsed as Record<string, unknown>);
+  } catch (err) {
+    console.warn('[knowledge-pack:overlay] load failed, falling back to bundle only', err);
+    return null;
+  }
+}
+
+function finalizeOverlay(raw: Record<string, unknown>): KnowledgePackOverlay {
+  // Validate + filter rules. Anything else is passed through as-is; the merge
+  // function does shallow per-section override and tolerates partial shapes.
+  let rules: KnowledgePackOverlay['rules'] = undefined;
+  if (Array.isArray(raw.rules)) {
+    const { rules: valid, errors } = validateRuleList(raw.rules);
+    if (errors.length > 0) {
+      console.warn(`[knowledge-pack:overlay] dropped ${errors.length} invalid rule(s):`, errors);
+    }
+    rules = valid;
+  }
+  return { ...(raw as Omit<KnowledgePackOverlay, 'rules'>), rules };
+}
+
+function isValidOverlayEnvelope(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return false;
   const v = (value as { version?: unknown }).version;
   if (typeof v !== 'string') return false;

@@ -82,3 +82,30 @@ export type KnowledgePack = {
 };
 
 export const SUPPORTED_PACK_MAJOR = 1;
+
+/**
+ * An overlay is a partial pack : every static-config field is optional. The
+ * loader deep-merges the overlay into the base bundle, with overlay winning
+ * field-by-field. Rules are merged by id (overlay rules replace base on id
+ * match, or are appended as new rules).
+ *
+ * `rules` here are post-validation. The loader runs validateRuleList on the
+ * raw JSON, drops invalid entries, then merges what survives.
+ */
+export type KnowledgePackOverlay = {
+  version: KnowledgePackVersion;
+  session_defaults?: Partial<Record<SessionType, Partial<SessionDefaults>>>;
+  param_defaults?: Partial<KnowledgePack['param_defaults']>;
+  param_clamps?: Partial<KnowledgePack['param_clamps']>;
+  rate_bounds?: Partial<KnowledgePack['rate_bounds']>;
+  fluid_modifiers?: {
+    temperature?: Partial<KnowledgePack['fluid_modifiers']['temperature']>;
+    humidity_high_factor?: number;
+  };
+  sodium_modifiers?: Partial<KnowledgePack['sodium_modifiers']>;
+  exposure_modifiers?: Partial<Record<Exposure, number>>;
+  first_hour?: Partial<KnowledgePack['first_hour']>;
+  aid_station_estimates?: Partial<KnowledgePack['aid_station_estimates']>;
+  feasibility_threshold?: number;
+  rules?: Rule[];
+};
