@@ -52,7 +52,16 @@ export function placeIntakes(input: {
     const allowed = allowedKindsForSlope(window.medianSlope);
     if (allowed === null) continue; // descente technique : pas d'intake
 
-    const pick = pickItem(allowed, remaining, itemsById, lastType);
+    const nextTarget = target + intakeIntervalMin;
+    const nextWindow =
+      nextTarget < totalDurationMin
+        ? windows.find((w) => nextTarget >= w.startMin && w.endMin > nextTarget)
+        : undefined;
+    const nextAllowed = nextWindow
+      ? allowedKindsForSlope(nextWindow.medianSlope)
+      : null;
+
+    const pick = pickItem(allowed, nextAllowed, remaining, itemsById, lastType);
     if (!pick) continue;
 
     remaining.set(pick.id, (remaining.get(pick.id) ?? 0) - 1);
@@ -72,6 +81,7 @@ function allowedKindsForSlope(medianSlope: number): FoodItemKind[] | null {
 
 function pickItem(
   allowed: FoodItemKind[],
+  nextAllowed: FoodItemKind[] | null,
   remaining: Map<string, number>,
   itemsById: Map<string, FoodItem>,
   lastType: FoodItemKind | null,
@@ -85,7 +95,20 @@ function pickItem(
   }
   if (candidates.length === 0) return null;
 
+  // 2.D : look-ahead. Si la prochaine fenêtre placeable est plus restrictive (sous-ensemble
+  // strict du allowed actuel), on préserve les kinds restreints pour elle en piochant
+  // d'abord dans les kinds non couverts par nextAllowed.
+  const nextIsStricterSubset =
+    nextAllowed !== null &&
+    nextAllowed.length < allowed.length &&
+    nextAllowed.every((k) => allowed.includes(k));
+
   candidates.sort((a, b) => {
+    if (nextIsStricterSubset) {
+      const aReserved = nextAllowed!.includes(a.type) ? 1 : 0;
+      const bReserved = nextAllowed!.includes(b.type) ? 1 : 0;
+      if (aReserved !== bReserved) return aReserved - bReserved;
+    }
     const aSame = a.type === lastType ? 1 : 0;
     const bSame = b.type === lastType ? 1 : 0;
     if (aSame !== bSame) return aSame - bSame;

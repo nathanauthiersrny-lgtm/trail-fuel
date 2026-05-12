@@ -182,4 +182,104 @@ describe('placeIntakes', () => {
       }),
     ).toEqual([]);
   });
+
+  describe('look-ahead (2.D)', () => {
+    it('reserves a gel for an upcoming climb_steep window when current is rolling', () => {
+      // Window 1: rolling (20-40), Window 2: climb_steep (40-60)
+      const windows: PlanningWindow[] = [
+        { index: 1, startMin: 20, endMin: 40, medianSlope: 0 },
+        { index: 2, startMin: 40, endMin: 60, medianSlope: 0.15 },
+      ];
+      // Inventory has both gel and bar
+      const events = placeIntakes({
+        windows,
+        params: { ...baseParams, first_intake_after_min: 30, intake_interval_min: 20 },
+        totalDurationMin: 60,
+        foodItems: [gel, bar],
+        inventory: [
+          { food_item_id: 'gel', quantity: 2 },
+          { food_item_id: 'bar', quantity: 2 },
+        ],
+      });
+      // Target 30 (rolling) should pick bar (gel reserved for target 50 / climb_steep)
+      // Target 50 (climb_steep) should pick gel (only gels allowed)
+      expect(events).toHaveLength(2);
+      expect(events[0].payload.food_item_id).toBe('bar');
+      expect(events[1].payload.food_item_id).toBe('gel');
+    });
+
+    it('does NOT apply look-ahead when both windows have same allowed kinds (rolling+rolling)', () => {
+      const windows = flatWindows(60); // 2 rolling windows
+      const events = placeIntakes({
+        windows,
+        params: { ...baseParams, first_intake_after_min: 30, intake_interval_min: 20 },
+        totalDurationMin: 60,
+        foodItems: [gel, bar],
+        inventory: [
+          { food_item_id: 'gel', quantity: 2 },
+          { food_item_id: 'bar', quantity: 2 },
+        ],
+      });
+      // Without look-ahead, the normal "higher carbs first" rule picks bar (40g > 22g) at target 30,
+      // then variety rule picks gel at target 50.
+      expect(events[0].payload.food_item_id).toBe('bar');
+      expect(events[1].payload.food_item_id).toBe('gel');
+    });
+
+    it('does NOT apply look-ahead when next window is descent_technical (no placement there)', () => {
+      const windows: PlanningWindow[] = [
+        { index: 1, startMin: 20, endMin: 40, medianSlope: 0 },
+        { index: 2, startMin: 40, endMin: 60, medianSlope: -0.15 },
+      ];
+      const events = placeIntakes({
+        windows,
+        params: { ...baseParams, first_intake_after_min: 30, intake_interval_min: 20 },
+        totalDurationMin: 60,
+        foodItems: [gel, bar],
+        inventory: [
+          { food_item_id: 'gel', quantity: 2 },
+          { food_item_id: 'bar', quantity: 2 },
+        ],
+      });
+      // Target 30 → rolling, no constraint from next (next is descent_technical → no intake).
+      // Bar wins on carbs.
+      expect(events).toHaveLength(1);
+      expect(events[0].payload.food_item_id).toBe('bar');
+    });
+
+    it('falls back to gel at rolling when no non-gel inventory remains', () => {
+      const windows: PlanningWindow[] = [
+        { index: 1, startMin: 20, endMin: 40, medianSlope: 0 },
+        { index: 2, startMin: 40, endMin: 60, medianSlope: 0.15 },
+      ];
+      const events = placeIntakes({
+        windows,
+        params: { ...baseParams, first_intake_after_min: 30, intake_interval_min: 20 },
+        totalDurationMin: 60,
+        foodItems: [gel],
+        inventory: [{ food_item_id: 'gel', quantity: 2 }],
+      });
+      // Only gels available → look-ahead can't reserve, fall back to gel both times.
+      expect(events.map((e) => e.payload.food_item_id)).toEqual(['gel', 'gel']);
+    });
+
+    it('does not constrain the last window (no next window)', () => {
+      const windows: PlanningWindow[] = [
+        { index: 1, startMin: 20, endMin: 40, medianSlope: 0 },
+      ];
+      const events = placeIntakes({
+        windows,
+        params: { ...baseParams, first_intake_after_min: 30, intake_interval_min: 20 },
+        totalDurationMin: 40,
+        foodItems: [gel, bar],
+        inventory: [
+          { food_item_id: 'gel', quantity: 1 },
+          { food_item_id: 'bar', quantity: 1 },
+        ],
+      });
+      // No next window → normal pick (bar wins on carbs).
+      expect(events).toHaveLength(1);
+      expect(events[0].payload.food_item_id).toBe('bar');
+    });
+  });
 });
