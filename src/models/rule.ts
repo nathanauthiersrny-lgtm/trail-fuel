@@ -32,7 +32,9 @@ export type CmpOp =
   | 'in'
   | 'between'
   | 'is_subset_of'
+  | 'is_strict_subset_of'
   | 'is_superset_of'
+  | 'is_strict_superset_of'
   | 'is_empty'
   | 'is_not_empty'
   | 'exists';
@@ -46,7 +48,11 @@ export type FieldCondition =
   | { field: string; op: 'gt' | 'gte' | 'lt' | 'lte'; value: number | ExpressionValue }
   | { field: string; op: 'in'; value: ScalarConstant[] }
   | { field: string; op: 'between'; value: [number, number] }
-  | { field: string; op: 'is_subset_of' | 'is_superset_of'; set: string }
+  | {
+      field: string;
+      op: 'is_subset_of' | 'is_strict_subset_of' | 'is_superset_of' | 'is_strict_superset_of';
+      set: string;
+    }
   | { field: string; op: 'is_empty' | 'is_not_empty' | 'exists' };
 
 export type Condition =

@@ -289,6 +289,27 @@ describe('validateRule — conditions', () => {
     ).toBe(true);
   });
 
+  it('accepts is_strict_subset_of and is_strict_superset_of with set path', () => {
+    expect(
+      validateRule(
+        withCondition({
+          field: 'next_window.allowed_kinds',
+          op: 'is_strict_subset_of',
+          set: 'window.allowed_kinds',
+        }),
+      ).ok,
+    ).toBe(true);
+    expect(
+      validateRule(
+        withCondition({
+          field: 'window.allowed_kinds',
+          op: 'is_strict_superset_of',
+          set: 'next_window.allowed_kinds',
+        }),
+      ).ok,
+    ).toBe(true);
+  });
+
   it('rejects is_subset_of without set path', () => {
     expect(
       validateRule(

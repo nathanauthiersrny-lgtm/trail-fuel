@@ -214,7 +214,9 @@ function validateFieldCondition(obj: Record<string, unknown>): ValidationResult<
       return ok({ field, op, value: [v[0], v[1]] });
     }
     case 'is_subset_of':
-    case 'is_superset_of': {
+    case 'is_strict_subset_of':
+    case 'is_superset_of':
+    case 'is_strict_superset_of': {
       if (typeof obj.set !== 'string') {
         return err(`op="${op}" requires set field of type string`);
       }
