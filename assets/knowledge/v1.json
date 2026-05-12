@@ -221,6 +221,28 @@
         "value": "climb_steep"
       },
       "action": { "op": "set_allowed_kinds", "kinds": ["gel"] }
+    },
+    {
+      "id": "lookahead-reserve-restricted-kinds",
+      "source": "base",
+      "category": "placement",
+      "scope": "intake_pick",
+      "description": "Si la fenêtre suivante est strictement plus restrictive, on évite ses kinds dans le pick actuel (réserve les kinds restreints pour la fenêtre qui en a besoin)",
+      "condition": {
+        "all": [
+          { "field": "next_window", "op": "exists" },
+          {
+            "field": "next_window.allowed_kinds",
+            "op": "is_strict_subset_of",
+            "set": "window.allowed_kinds"
+          },
+          { "field": "next_window.allowed_kinds", "op": "is_not_empty" }
+        ]
+      },
+      "action": {
+        "op": "avoid_kinds",
+        "kinds": { "kinds_from": "next_window.allowed_kinds" }
+      }
     }
   ]
 }
