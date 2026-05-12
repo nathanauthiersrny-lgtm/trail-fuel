@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "humidity-boost-stronger",
+      "source": "overlay",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Humidité haute : fluid × 1.20 (au lieu de 1.15 base)",
+      "condition": { "field": "humidity_high", "op": "equals", "value": true },
+      "action": { "target": "fluid_per_hour_ml", "op": "multiply", "value": 1.20 }
+    },
+    {
+      "id": "ultra-trail-carbs-bonus",
+      "source": "overlay",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Course > 6h : +10g/h de glucides (besoin métabolique accru)",
+      "condition": { "field": "duration_min", "op": "gt", "value": 360 },
+      "action": { "target": "carbs_per_hour_g", "op": "add", "value": 10 }
+    },
+    {
+      "id": "altitude-fluid-cut",
+      "source": "overlay",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "D+ > 2000m : fluid × 0.95 (déshydratation lente, mais soif diminuée)",
+      "condition": { "field": "total_elevation_gain_m", "op": "gt", "value": 2000 },
+      "action": { "target": "fluid_per_hour_ml", "op": "multiply", "value": 0.95 }
+    }
+  ]
+}
