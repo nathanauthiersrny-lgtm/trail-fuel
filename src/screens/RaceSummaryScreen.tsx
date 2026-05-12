@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,6 +16,11 @@ import {
   formatChrono,
   formatRelativeMinute,
 } from '../components/runtime/event-description';
+import { EventFeedbackBlock } from '../components/summary/EventFeedbackBlock';
+import {
+  listByRace as listFeedbackByRace,
+  upsertBy as upsertFeedback,
+} from '../db/repos/event-feedback-repo';
 import { listFoodItems } from '../db/repos/food-item-repo';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
 import {
@@ -26,6 +31,11 @@ import {
 import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
 import type { AidStation } from '../models/aid-station';
+import type {
+  EventFeedback,
+  FeedbackTag,
+  QuantityActual,
+} from '../models/event-feedback';
 import type { EventLog } from '../models/event-log';
 import type { FoodItem } from '../models/food-item';
 import type { RaceStatus } from '../models/race';
@@ -37,6 +47,10 @@ export default function RaceSummaryScreen() {
   const dbState = useDatabase();
   const state = useActiveRace(raceId);
   const [foodItems, setFoodItems] = useState<FoodItem[] | null>(null);
+  const [feedbacks, setFeedbacks] = useState<Map<string, EventFeedback>>(
+    () => new Map(),
+  );
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (dbState.status !== 'ready') return;
@@ -49,6 +63,67 @@ export default function RaceSummaryScreen() {
       cancelled = true;
     };
   }, [dbState]);
+
+  useEffect(() => {
+    if (dbState.status !== 'ready' || !raceId) return;
+    let cancelled = false;
+    void listFeedbackByRace(dbState.db, raceId).then((rows) => {
+      if (cancelled) return;
+      setFeedbacks(new Map(rows.map((fb) => [fb.planned_event_id, fb])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbState, raceId]);
+
+  const toggleExpand = useCallback((plannedEventId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(plannedEventId)) next.delete(plannedEventId);
+      else next.add(plannedEventId);
+      return next;
+    });
+  }, []);
+
+  const persistFeedback = useCallback(
+    async (
+      plannedEventId: string,
+      patch: { tags?: FeedbackTag[]; actual_quantity?: QuantityActual | null },
+    ) => {
+      if (dbState.status !== 'ready' || !raceId) return;
+      try {
+        const next = await upsertFeedback(
+          dbState.db,
+          raceId,
+          plannedEventId,
+          patch,
+          Date.now(),
+        );
+        setFeedbacks((prev) => {
+          const map = new Map(prev);
+          map.set(plannedEventId, next);
+          return map;
+        });
+      } catch (err) {
+        console.error('[summary] upsertFeedback failed', err);
+      }
+    },
+    [dbState, raceId],
+  );
+
+  const handleChangeTags = useCallback(
+    (plannedEventId: string, tags: FeedbackTag[]) => {
+      void persistFeedback(plannedEventId, { tags });
+    },
+    [persistFeedback],
+  );
+
+  const handleChangeQuantity = useCallback(
+    (plannedEventId: string, quantity: QuantityActual | null) => {
+      void persistFeedback(plannedEventId, { actual_quantity: quantity });
+    },
+    [persistFeedback],
+  );
 
   const foodItemsById = useMemo(
     () => new Map((foodItems ?? []).map((f) => [f.id, f])),
@@ -129,6 +204,11 @@ export default function RaceSummaryScreen() {
             log={state.cursor.logsByEventId[event.id]}
             foodItemsById={foodItemsById}
             aidStationsById={aidStationsById}
+            feedback={feedbacks.get(event.id)}
+            expanded={expanded.has(event.id)}
+            onToggleExpand={() => toggleExpand(event.id)}
+            onChangeTags={(tags) => handleChangeTags(event.id, tags)}
+            onChangeQuantity={(q) => handleChangeQuantity(event.id, q)}
           />
         ))
       )}
@@ -240,14 +320,31 @@ function DetailRow({
   log,
   foodItemsById,
   aidStationsById,
+  feedback,
+  expanded,
+  onToggleExpand,
+  onChangeTags,
+  onChangeQuantity,
 }: {
   event: PersistedPlannedEvent;
   log?: EventLog;
   foodItemsById: Map<string, FoodItem>;
   aidStationsById: Map<string, AidStation>;
+  feedback?: EventFeedback;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onChangeTags: (tags: FeedbackTag[]) => void;
+  onChangeQuantity: (quantity: QuantityActual | null) => void;
 }) {
   const description = describeEvent(event, foodItemsById, aidStationsById);
-  return (
+  const supportsFeedback = event.type !== 'aid_station';
+  const tagCount = feedback?.tags?.length ?? 0;
+  const hasQuantity = feedback?.actual_quantity !== undefined;
+  const annotationCount = tagCount + (hasQuantity ? 1 : 0);
+  const showQuantity = event.type === 'intake' || event.type === 'fluid_reminder';
+  const isDone = log?.status === 'done';
+
+  const row = (
     <View style={styles.detailRow}>
       <View style={[styles.detailDot, { backgroundColor: EVENT_TYPE_COLOR[event.type] }]} />
       <Text style={styles.detailTime}>
@@ -257,7 +354,35 @@ function DetailRow({
       <Text style={styles.detailDesc} numberOfLines={2}>
         {description}
       </Text>
+      {supportsFeedback && annotationCount > 0 ? (
+        <Text style={styles.feedbackBadge}>· {annotationCount}</Text>
+      ) : null}
       <DetailBadge event={event} log={log} />
+      {supportsFeedback ? (
+        <Text style={styles.expandCaret}>{expanded ? '▾' : '▸'}</Text>
+      ) : null}
+    </View>
+  );
+
+  if (!supportsFeedback) return row;
+
+  return (
+    <View>
+      <Pressable
+        onPress={onToggleExpand}
+        style={({ pressed }) => [pressed && styles.detailRowPressed]}
+      >
+        {row}
+      </Pressable>
+      {expanded ? (
+        <EventFeedbackBlock
+          feedback={feedback}
+          isDone={isDone}
+          showQuantity={showQuantity}
+          onChangeTags={onChangeTags}
+          onChangeQuantity={onChangeQuantity}
+        />
+      ) : null}
     </View>
   );
 }
@@ -426,6 +551,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
     gap: 8,
+  },
+  detailRowPressed: {
+    backgroundColor: '#f0f0f0',
+  },
+  feedbackBadge: {
+    fontSize: 12,
+    color: '#0a7ea4',
+    fontWeight: '700',
+  },
+  expandCaret: {
+    fontSize: 12,
+    color: '#999',
+    width: 14,
+    textAlign: 'right',
   },
   detailDot: {
     width: 8,

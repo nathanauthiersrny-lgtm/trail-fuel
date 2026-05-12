@@ -4,6 +4,7 @@ import { migration001Initial } from './001-initial';
 import { migration002SeedFoodItems } from './002-seed-food-items';
 import { migration003Races } from './003-races';
 import { migration004Runtime } from './004-runtime';
+import { migration005EventFeedback } from './005-event-feedback';
 
 export type Migration = {
   version: number;
@@ -16,6 +17,7 @@ const MIGRATIONS: Migration[] = [
   migration002SeedFoodItems,
   migration003Races,
   migration004Runtime,
+  migration005EventFeedback,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<number> {

@@ -20,6 +20,7 @@ import {
   formatChrono,
   formatRelativeMinute,
 } from '../components/runtime/event-description';
+import { SkipReasonSheet } from '../components/runtime/SkipReasonSheet';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
 import { listFoodItems } from '../db/repos/food-item-repo';
 import { getOrCreateProfile } from '../db/repos/profile-repo';
@@ -28,6 +29,7 @@ import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
 import type { AidStation } from '../models/aid-station';
 import type { EventLog } from '../models/event-log';
+import type { SkipReason } from '../models/event-feedback';
 import type { FoodItem } from '../models/food-item';
 import type { Profile } from '../models/profile';
 import type { Race } from '../models/race';
@@ -296,8 +298,17 @@ function InProgressView({
       });
   }, [race, db, foodItemsById, aidStationsById, refresh]);
 
-  const handleAction = useCallback(
-    async (event: PersistedPlannedEvent, input: EventCardActionInput) => {
+  const [pendingSkip, setPendingSkip] = useState<{
+    event: PersistedPlannedEvent;
+    subject: string;
+  } | null>(null);
+
+  const persistAction = useCallback(
+    async (
+      event: PersistedPlannedEvent,
+      input: EventCardActionInput,
+      skipReason?: SkipReason,
+    ) => {
       try {
         await logEvent({
           db,
@@ -305,6 +316,7 @@ function InProgressView({
           plannedEventId: event.id,
           status: input.status,
           ...(input.feeling !== undefined ? { feeling: input.feeling } : {}),
+          ...(skipReason !== undefined ? { skipReason } : {}),
           now: Date.now(),
         });
         await refresh();
@@ -314,6 +326,38 @@ function InProgressView({
     },
     [db, race.id, refresh],
   );
+
+  const handleAction = useCallback(
+    async (event: PersistedPlannedEvent, input: EventCardActionInput) => {
+      const shouldAskReason =
+        input.status === 'skipped' &&
+        event.type === 'intake' &&
+        race.session_type !== 'competition';
+      if (shouldAskReason) {
+        setPendingSkip({
+          event,
+          subject: describeEvent(event, foodItemsById, aidStationsById),
+        });
+        return;
+      }
+      await persistAction(event, input);
+    },
+    [persistAction, race.session_type, foodItemsById, aidStationsById],
+  );
+
+  const handleSkipConfirm = useCallback(
+    (reason: SkipReason | undefined) => {
+      const skip = pendingSkip;
+      if (!skip) return;
+      setPendingSkip(null);
+      void persistAction(skip.event, { status: 'skipped' }, reason);
+    },
+    [pendingSkip, persistAction],
+  );
+
+  const handleSkipCancel = useCallback(() => {
+    setPendingSkip(null);
+  }, []);
 
   const handleEnd = useCallback(() => {
     Alert.alert(
@@ -416,6 +460,13 @@ function InProgressView({
       >
         <Text style={styles.endButtonText}>Fin de course</Text>
       </Pressable>
+
+      <SkipReasonSheet
+        visible={pendingSkip !== null}
+        subject={pendingSkip?.subject}
+        onConfirm={handleSkipConfirm}
+        onCancel={handleSkipCancel}
+      />
     </ScrollView>
   );
 }
