@@ -1,4 +1,5 @@
 import type { Exposure, Intensity, SessionType } from './race';
+import type { Rule } from './rule';
 
 export type KnowledgePackVersion = `${number}.${number}.${number}`;
 
@@ -72,6 +73,12 @@ export type KnowledgePack = {
   };
 
   feasibility_threshold: number;
+
+  /**
+   * Post-validation rules list. The JSON pack ships these as raw objects; the
+   * loader validates each one and discards invalid entries with a warning.
+   */
+  rules: Rule[];
 };
 
 export const SUPPORTED_PACK_MAJOR = 1;

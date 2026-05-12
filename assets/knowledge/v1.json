@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "session_defaults": {
     "plaisir": {
       "intensity": "easy",
@@ -87,5 +87,114 @@
     "fluid_per_water_stop_ml": 500,
     "fluid_per_isotonic_stop_ml": 500
   },
-  "feasibility_threshold": 0.85
+  "feasibility_threshold": 0.85,
+  "rules": [
+    {
+      "id": "intensity-carbs-plaisir",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Session plaisir : carbs × 0.85",
+      "condition": { "field": "session_type", "op": "equals", "value": "plaisir" },
+      "action": { "target": "carbs_per_hour_g", "op": "multiply", "value": 0.85 }
+    },
+    {
+      "id": "intensity-carbs-dur",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Session dur : carbs × 1.15",
+      "condition": { "field": "session_type", "op": "equals", "value": "dur" },
+      "action": { "target": "carbs_per_hour_g", "op": "multiply", "value": 1.15 }
+    },
+    {
+      "id": "intensity-carbs-competition",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Session competition : carbs × 1.20",
+      "condition": { "field": "session_type", "op": "equals", "value": "competition" },
+      "action": { "target": "carbs_per_hour_g", "op": "multiply", "value": 1.20 }
+    },
+    {
+      "id": "fluid-temp-hot",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Température > 20°C : +50 ml/h par °C au-dessus",
+      "condition": { "field": "temperature_c", "op": "gt", "value": 20 },
+      "action": {
+        "target": "fluid_per_hour_ml",
+        "op": "add",
+        "value": { "expr": "(temperature_c - 20) * 50" }
+      }
+    },
+    {
+      "id": "fluid-temp-cold",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Température < 10°C : compensation linéaire (-50 ml/h par °C en dessous)",
+      "condition": { "field": "temperature_c", "op": "lt", "value": 10 },
+      "action": {
+        "target": "fluid_per_hour_ml",
+        "op": "add",
+        "value": { "expr": "(temperature_c - 10) * 50" }
+      }
+    },
+    {
+      "id": "fluid-humidity-high",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Humidité haute : fluid × 1.15",
+      "condition": { "field": "humidity_high", "op": "equals", "value": true },
+      "action": { "target": "fluid_per_hour_ml", "op": "multiply", "value": 1.15 }
+    },
+    {
+      "id": "fluid-exposure-sun",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Exposition soleil : fluid × 1.10",
+      "condition": { "field": "exposure", "op": "equals", "value": "sun" },
+      "action": { "target": "fluid_per_hour_ml", "op": "multiply", "value": 1.10 }
+    },
+    {
+      "id": "fluid-exposure-shade",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Exposition ombre : fluid × 0.95",
+      "condition": { "field": "exposure", "op": "equals", "value": "shade" },
+      "action": { "target": "fluid_per_hour_ml", "op": "multiply", "value": 0.95 }
+    },
+    {
+      "id": "sodium-long-duration",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Durée > 180 min : +100 mg/h sodium",
+      "condition": { "field": "duration_min", "op": "gt", "value": 180 },
+      "action": { "target": "sodium_per_hour_mg", "op": "add", "value": 100 }
+    },
+    {
+      "id": "sodium-hot-temp",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Température > 25°C : +200 mg/h sodium",
+      "condition": { "field": "temperature_c", "op": "gt", "value": 25 },
+      "action": { "target": "sodium_per_hour_mg", "op": "add", "value": 200 }
+    },
+    {
+      "id": "sodium-humidity-high",
+      "source": "base",
+      "category": "nutrition",
+      "scope": "race",
+      "description": "Humidité haute : +100 mg/h sodium",
+      "condition": { "field": "humidity_high", "op": "equals", "value": true },
+      "action": { "target": "sodium_per_hour_mg", "op": "add", "value": 100 }
+    }
+  ]
 }
