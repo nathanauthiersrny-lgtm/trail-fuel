@@ -3,10 +3,9 @@ import type { InventoryItem } from '../../models/race';
 
 import type { DraftEvent } from './check-ins';
 import type { ResolvedParams } from './resolve-params';
+import { categorizeSlope } from './slope-categories';
 import type { PlanningWindow } from './windows';
 
-const HIGH_SLOPE_THRESHOLD = 0.10;
-const LOW_SLOPE_THRESHOLD = -0.08;
 // Default fallback only — generate.ts passe désormais params.intake_interval_min.
 // TODO(post-trail 2026-05-10): retirer ce fallback une fois resolve-params stabilisé.
 const DEFAULT_INTAKE_INTERVAL_MIN = 20;
@@ -65,8 +64,9 @@ export function placeIntakes(input: {
 }
 
 function allowedKindsForSlope(medianSlope: number): FoodItemKind[] | null {
-  if (medianSlope < LOW_SLOPE_THRESHOLD) return null;
-  if (medianSlope > HIGH_SLOPE_THRESHOLD) return STEEP_CLIMB_KINDS;
+  const category = categorizeSlope(medianSlope);
+  if (category === 'descent_technical') return null;
+  if (category === 'climb_steep') return STEEP_CLIMB_KINDS;
   return ALL_SOLID_KINDS;
 }
 
