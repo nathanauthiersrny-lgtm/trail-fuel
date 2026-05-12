@@ -6,7 +6,7 @@ import {
   applyRaceRules,
   type RaceTargets,
 } from '../rules/action';
-import type { EvalContext } from '../rules/condition';
+import { buildRaceContext } from '../rules/context';
 
 export type ResolvedParams = {
   carbs_per_hour_g: number;
@@ -107,25 +107,6 @@ export function resolveParams(input: {
     skip_alert_threshold: defaults.skip_alert_threshold,
     deficit_alert_pct: defaults.deficit_alert_pct,
     intensity: race.intensity ?? defaults.intensity,
-  };
-}
-
-function buildRaceContext(profile: Profile, race: Race, durationMin: number): EvalContext {
-  return {
-    session_type: race.session_type,
-    intensity: race.intensity,
-    temperature_c: race.temperature_c,
-    humidity_high: race.humidity_high,
-    exposure: race.exposure,
-    terrain_type: race.terrain_type,
-    duration_min: durationMin,
-    refill_in_nature: race.refill_in_nature,
-    has_gpx: race.gpx_track !== undefined,
-    total_elevation_gain_m: race.gpx_track?.total_elevation_gain_m ?? 0,
-    total_distance_km: race.gpx_track?.total_distance_km ?? 0,
-    carbs_per_hour_g_base: profile.carbs_per_hour_g,
-    fluid_per_hour_ml_base: profile.fluid_per_hour_ml,
-    sodium_per_hour_mg_base: profile.sodium_per_hour_mg,
   };
 }
 

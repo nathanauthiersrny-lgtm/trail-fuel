@@ -4,6 +4,10 @@ import type { InventoryItem } from '../../../models/race';
 import { placeIntakes } from '../../planning/placement';
 import type { ResolvedParams } from '../../planning/resolve-params';
 import type { PlanningWindow } from '../../planning/windows';
+import type { EvalContext } from '../../rules/condition';
+import { TEST_PACK } from '../test-helpers/knowledge-pack';
+
+const TEST_RACE_CTX: EvalContext = {};
 
 const baseParams: ResolvedParams = {
   carbs_per_hour_g: 60,
@@ -58,6 +62,8 @@ describe('placeIntakes', () => {
       totalDurationMin: 180,
       foodItems: [gel],
       inventory,
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     expect(events.map((e) => e.scheduled_at_minute)).toEqual([30, 50, 70, 90, 110, 130, 150, 170]);
   });
@@ -71,6 +77,8 @@ describe('placeIntakes', () => {
       totalDurationMin: 180,
       foodItems: [gel],
       inventory,
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     expect(events.map((e) => e.scheduled_at_minute)).toEqual([60, 80, 100, 120, 140, 160]);
   });
@@ -87,6 +95,8 @@ describe('placeIntakes', () => {
       totalDurationMin: 80,
       foodItems: [gel],
       inventory: [{ food_item_id: 'gel', quantity: 10 }],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     expect(events.map((e) => e.scheduled_at_minute)).toEqual([30, 70]);
   });
@@ -106,6 +116,8 @@ describe('placeIntakes', () => {
         { food_item_id: 'bar', quantity: 5 },
         { food_item_id: 'gel', quantity: 5 },
       ],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     const climbEvent = events.find((e) => e.scheduled_at_minute === 50);
     expect(climbEvent).toBeDefined();
@@ -122,6 +134,8 @@ describe('placeIntakes', () => {
         { food_item_id: 'gel', quantity: 5 },
         { food_item_id: 'bar', quantity: 5 },
       ],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     const types = events.map((e) =>
       e.payload.food_item_id === 'gel' ? 'gel' : e.payload.food_item_id === 'bar' ? 'bar' : 'other',
@@ -139,6 +153,8 @@ describe('placeIntakes', () => {
       totalDurationMin: 180,
       foodItems: [gel],
       inventory: [{ food_item_id: 'gel', quantity: 3 }],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     expect(events).toHaveLength(3);
   });
@@ -150,6 +166,8 @@ describe('placeIntakes', () => {
       totalDurationMin: 180,
       foodItems: [gel],
       inventory: [],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     expect(events).toEqual([]);
   });
@@ -165,6 +183,8 @@ describe('placeIntakes', () => {
         { food_item_id: 'iso', quantity: 5 },
         { food_item_id: 'gel', quantity: 5 },
       ],
+      raceContext: TEST_RACE_CTX,
+      pack: TEST_PACK,
     });
     for (const ev of events) {
       expect(ev.payload.food_item_id).toBe('gel');
@@ -179,6 +199,8 @@ describe('placeIntakes', () => {
         totalDurationMin: 0,
         foodItems: [gel],
         inventory: [{ food_item_id: 'gel', quantity: 5 }],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       }),
     ).toEqual([]);
   });
@@ -200,6 +222,8 @@ describe('placeIntakes', () => {
           { food_item_id: 'gel', quantity: 2 },
           { food_item_id: 'bar', quantity: 2 },
         ],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       });
       // Target 30 (rolling) should pick bar (gel reserved for target 50 / climb_steep)
       // Target 50 (climb_steep) should pick gel (only gels allowed)
@@ -219,6 +243,8 @@ describe('placeIntakes', () => {
           { food_item_id: 'gel', quantity: 2 },
           { food_item_id: 'bar', quantity: 2 },
         ],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       });
       // Without look-ahead, the normal "higher carbs first" rule picks bar (40g > 22g) at target 30,
       // then variety rule picks gel at target 50.
@@ -240,6 +266,8 @@ describe('placeIntakes', () => {
           { food_item_id: 'gel', quantity: 2 },
           { food_item_id: 'bar', quantity: 2 },
         ],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       });
       // Target 30 → rolling, no constraint from next (next is descent_technical → no intake).
       // Bar wins on carbs.
@@ -258,6 +286,8 @@ describe('placeIntakes', () => {
         totalDurationMin: 60,
         foodItems: [gel],
         inventory: [{ food_item_id: 'gel', quantity: 2 }],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       });
       // Only gels available → look-ahead can't reserve, fall back to gel both times.
       expect(events.map((e) => e.payload.food_item_id)).toEqual(['gel', 'gel']);
@@ -276,6 +306,8 @@ describe('placeIntakes', () => {
           { food_item_id: 'gel', quantity: 1 },
           { food_item_id: 'bar', quantity: 1 },
         ],
+        raceContext: TEST_RACE_CTX,
+        pack: TEST_PACK,
       });
       // No next window → normal pick (bar wins on carbs).
       expect(events).toHaveLength(1);

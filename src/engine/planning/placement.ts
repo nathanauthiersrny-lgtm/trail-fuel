@@ -1,5 +1,9 @@
 import type { FoodItem, FoodItemKind } from '../../models/food-item';
+import type { KnowledgePack } from '../../models/knowledge-pack';
 import type { InventoryItem } from '../../models/race';
+import type { WindowRule } from '../../models/rule';
+import { applyWindowRules } from '../rules/action';
+import type { EvalContext } from '../rules/condition';
 
 import type { DraftEvent } from './check-ins';
 import type { ResolvedParams } from './resolve-params';
@@ -10,8 +14,9 @@ import type { PlanningWindow } from './windows';
 // TODO(post-trail 2026-05-10): retirer ce fallback une fois resolve-params stabilisé.
 const DEFAULT_INTAKE_INTERVAL_MIN = 20;
 
-const ALL_SOLID_KINDS: FoodItemKind[] = ['gel', 'bar', 'real_food'];
-const STEEP_CLIMB_KINDS: FoodItemKind[] = ['gel'];
+// Baseline of kinds allowed in any window before window-scope rules apply.
+// Window rules may override or restrict this list (or set it to null = no intake).
+const DEFAULT_ALLOWED_KINDS: FoodItemKind[] = ['gel', 'bar', 'real_food'];
 
 export function placeIntakes(input: {
   windows: PlanningWindow[];
@@ -19,6 +24,8 @@ export function placeIntakes(input: {
   totalDurationMin: number;
   foodItems: FoodItem[];
   inventory: InventoryItem[];
+  raceContext: EvalContext;
+  pack: KnowledgePack;
   intakeIntervalMin?: number;
 }): DraftEvent[] {
   const {
@@ -27,6 +34,8 @@ export function placeIntakes(input: {
     totalDurationMin,
     foodItems,
     inventory,
+    raceContext,
+    pack,
     intakeIntervalMin = DEFAULT_INTAKE_INTERVAL_MIN,
   } = input;
 
@@ -37,6 +46,8 @@ export function placeIntakes(input: {
     remaining.set(slot.food_item_id, (remaining.get(slot.food_item_id) ?? 0) + slot.quantity);
   }
   const itemsById = new Map(foodItems.map((item) => [item.id, item]));
+
+  const windowRules = pack.rules.filter((r): r is WindowRule => r.scope === 'window');
 
   const events: DraftEvent[] = [];
   let lastType: FoodItemKind | null = null;
@@ -49,8 +60,8 @@ export function placeIntakes(input: {
     const window = windows.find((w) => target >= w.startMin && target < w.endMin);
     if (!window) continue;
 
-    const allowed = allowedKindsForSlope(window.medianSlope);
-    if (allowed === null) continue; // descente technique : pas d'intake
+    const allowed = allowedKindsForWindow(window, raceContext, windowRules);
+    if (allowed === null) continue; // descente technique (par défaut) : pas d'intake
 
     const nextTarget = target + intakeIntervalMin;
     const nextWindow =
@@ -58,7 +69,7 @@ export function placeIntakes(input: {
         ? windows.find((w) => nextTarget >= w.startMin && w.endMin > nextTarget)
         : undefined;
     const nextAllowed = nextWindow
-      ? allowedKindsForSlope(nextWindow.medianSlope)
+      ? allowedKindsForWindow(nextWindow, raceContext, windowRules)
       : null;
 
     const pick = pickItem(allowed, nextAllowed, remaining, itemsById, lastType);
@@ -72,11 +83,25 @@ export function placeIntakes(input: {
   return events;
 }
 
-function allowedKindsForSlope(medianSlope: number): FoodItemKind[] | null {
-  const category = categorizeSlope(medianSlope);
-  if (category === 'descent_technical') return null;
-  if (category === 'climb_steep') return STEEP_CLIMB_KINDS;
-  return ALL_SOLID_KINDS;
+function allowedKindsForWindow(
+  window: PlanningWindow,
+  raceContext: EvalContext,
+  windowRules: WindowRule[],
+): FoodItemKind[] | null {
+  const slopeCategory = categorizeSlope(window.medianSlope);
+  const ctx: EvalContext = {
+    ...raceContext,
+    window: {
+      slope_category: slopeCategory,
+      medianSlope: window.medianSlope,
+      startMin: window.startMin,
+      endMin: window.endMin,
+    },
+  };
+  const result = applyWindowRules(windowRules, ctx, {
+    allowed_kinds: [...DEFAULT_ALLOWED_KINDS],
+  });
+  return result.allowed_kinds;
 }
 
 function pickItem(

@@ -4,6 +4,8 @@ import type { PlannedEvent, PlanWarning } from '../../models/planned-event';
 import type { Profile } from '../../models/profile';
 import type { Race } from '../../models/race';
 
+import { buildRaceContext } from '../rules/context';
+
 import { adjustCollisions } from './adjust-collisions';
 import { buildAidStationEvents } from './aid-stations';
 import type { DraftEvent } from './check-ins';
@@ -71,12 +73,16 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
     frequencyMin: params.check_in_frequency_min,
   });
 
+  const raceContext = buildRaceContext(profile, race, timeline.totalDurationMin);
+
   const intakeDrafts = placeIntakes({
     windows,
     params,
     totalDurationMin: timeline.totalDurationMin,
     foodItems,
     inventory: race.inventory,
+    raceContext,
+    pack,
     intakeIntervalMin: params.intake_interval_min,
   });
 

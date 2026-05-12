@@ -195,6 +195,32 @@
       "description": "Humidité haute : +100 mg/h sodium",
       "condition": { "field": "humidity_high", "op": "equals", "value": true },
       "action": { "target": "sodium_per_hour_mg", "op": "add", "value": 100 }
+    },
+    {
+      "id": "slope-descent-technical-no-intake",
+      "source": "base",
+      "category": "placement",
+      "scope": "window",
+      "description": "Descente technique : pas d'intake placé",
+      "condition": {
+        "field": "window.slope_category",
+        "op": "equals",
+        "value": "descent_technical"
+      },
+      "action": { "op": "set_allowed_kinds", "kinds": null }
+    },
+    {
+      "id": "slope-climb-steep-gel-only",
+      "source": "base",
+      "category": "placement",
+      "scope": "window",
+      "description": "Montée raide : uniquement des gels (digestes en effort élevé)",
+      "condition": {
+        "field": "window.slope_category",
+        "op": "equals",
+        "value": "climb_steep"
+      },
+      "action": { "op": "set_allowed_kinds", "kinds": ["gel"] }
     }
   ]
 }
