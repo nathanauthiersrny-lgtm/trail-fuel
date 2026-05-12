@@ -31,10 +31,11 @@ import {
 import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
 import type { AidStation } from '../models/aid-station';
-import type {
-  EventFeedback,
-  FeedbackTag,
-  QuantityActual,
+import {
+  skipReasonToTag,
+  type EventFeedback,
+  type FeedbackTag,
+  type QuantityActual,
 } from '../models/event-feedback';
 import type { EventLog } from '../models/event-log';
 import type { FoodItem } from '../models/food-item';
@@ -67,10 +68,31 @@ export default function RaceSummaryScreen() {
   useEffect(() => {
     if (dbState.status !== 'ready' || !raceId) return;
     let cancelled = false;
-    void listFeedbackByRace(dbState.db, raceId).then((rows) => {
+    void (async () => {
+      const rows = await listFeedbackByRace(dbState.db, raceId);
+      // Auto-promote skip_reason into tags on first load of an untouched feedback row.
+      // Heuristic : updated_at === created_at means the user hasn't touched it post-creation,
+      // so we safely promote without overriding an explicit user choice.
+      const now = Date.now();
+      const promoted = await Promise.all(
+        rows.map(async (fb) => {
+          if (!fb.skip_reason) return fb;
+          if (fb.updated_at !== fb.created_at) return fb;
+          const mapped = skipReasonToTag(fb.skip_reason);
+          if (fb.tags?.includes(mapped)) return fb;
+          const nextTags: FeedbackTag[] = [...(fb.tags ?? []), mapped];
+          return upsertFeedback(
+            dbState.db,
+            raceId,
+            fb.planned_event_id,
+            { tags: nextTags },
+            now,
+          );
+        }),
+      );
       if (cancelled) return;
-      setFeedbacks(new Map(rows.map((fb) => [fb.planned_event_id, fb])));
-    });
+      setFeedbacks(new Map(promoted.map((fb) => [fb.planned_event_id, fb])));
+    })();
     return () => {
       cancelled = true;
     };

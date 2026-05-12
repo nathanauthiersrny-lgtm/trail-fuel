@@ -25,6 +25,7 @@ const TAG_META: Record<FeedbackTag, { emoji: string; label: string }> = {
   too_late: { emoji: '🕐', label: 'Trop tard' },
   too_close: { emoji: '🤏', label: 'Trop proche' },
   terrain: { emoji: '🏃', label: 'Terrain' },
+  other: { emoji: '🤷', label: 'Autre' },
   ok: { emoji: '👍', label: 'OK' },
 };
 

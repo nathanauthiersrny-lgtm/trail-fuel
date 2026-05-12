@@ -31,6 +31,7 @@ export type FeedbackTag =
   | 'too_late'
   | 'too_close'
   | 'terrain'
+  | 'other'
   | 'ok';
 
 export const FEEDBACK_TAGS: readonly FeedbackTag[] = [
@@ -40,8 +41,18 @@ export const FEEDBACK_TAGS: readonly FeedbackTag[] = [
   'too_late',
   'too_close',
   'terrain',
+  'other',
   'ok',
 ];
+
+/**
+ * Every SkipReason has a 1-to-1 equivalent FeedbackTag. Used by the summary view
+ * to pre-populate the user's in-race skip reason as a tag, so the data they
+ * already gave is visible (and editable) in the debrief.
+ */
+export function skipReasonToTag(skipReason: SkipReason): FeedbackTag {
+  return skipReason;
+}
 
 /**
  * Coarse portion actually consumed, set post-race only for events with
