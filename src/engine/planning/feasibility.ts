@@ -1,24 +1,19 @@
 import type { AidStation } from '../../models/aid-station';
 import type { FoodItem } from '../../models/food-item';
+import type { KnowledgePack } from '../../models/knowledge-pack';
 import type { PlanWarning } from '../../models/planned-event';
 import type { InventoryItem } from '../../models/race';
 
 import type { Needs } from './needs';
-
-export const FEASIBILITY_THRESHOLD = 0.85;
-
-export const CARBS_PER_SOLID_STOP_G = 30;
-export const CARBS_PER_ISOTONIC_STOP_G = 30;
-export const FLUID_PER_WATER_STOP_ML = 500;
-export const FLUID_PER_ISOTONIC_STOP_ML = 500;
 
 export function checkFeasibility(input: {
   inventory: InventoryItem[];
   foodItems: FoodItem[];
   aidStations: AidStation[];
   needs: Needs;
+  pack: KnowledgePack;
 }): PlanWarning[] {
-  const { inventory, foodItems, aidStations, needs } = input;
+  const { inventory, foodItems, aidStations, needs, pack } = input;
   const itemsById = new Map(foodItems.map((f) => [f.id, f]));
 
   let carbsFromInventory = 0;
@@ -32,23 +27,25 @@ export function checkFeasibility(input: {
     }
   }
 
+  const stops = pack.aid_station_estimates;
   let carbsFromAids = 0;
   let fluidFromAids = 0;
   for (const aid of aidStations) {
-    if (aid.available.solid_food) carbsFromAids += CARBS_PER_SOLID_STOP_G;
+    if (aid.available.solid_food) carbsFromAids += stops.carbs_per_solid_stop_g;
     if (aid.available.isotonic) {
-      carbsFromAids += CARBS_PER_ISOTONIC_STOP_G;
-      fluidFromAids += FLUID_PER_ISOTONIC_STOP_ML;
+      carbsFromAids += stops.carbs_per_isotonic_stop_g;
+      fluidFromAids += stops.fluid_per_isotonic_stop_ml;
     }
-    if (aid.available.water) fluidFromAids += FLUID_PER_WATER_STOP_ML;
+    if (aid.available.water) fluidFromAids += stops.fluid_per_water_stop_ml;
   }
 
   const totalCarbs = carbsFromInventory + carbsFromAids;
   const totalFluid = fluidFromInventory + fluidFromAids;
+  const threshold = pack.feasibility_threshold;
 
   const warnings: PlanWarning[] = [];
 
-  if (totalCarbs < needs.totalCarbs_g * FEASIBILITY_THRESHOLD) {
+  if (totalCarbs < needs.totalCarbs_g * threshold) {
     const missing = Math.round(needs.totalCarbs_g - totalCarbs);
     warnings.push({
       severity: 'high',
@@ -57,7 +54,7 @@ export function checkFeasibility(input: {
     });
   }
 
-  if (totalFluid < needs.totalFluid_ml * FEASIBILITY_THRESHOLD) {
+  if (totalFluid < needs.totalFluid_ml * threshold) {
     const missing = Math.round(needs.totalFluid_ml - totalFluid);
     warnings.push({
       severity: 'high',

@@ -9,6 +9,7 @@ import {
 import { checkFeasibility } from '../../engine/planning/feasibility';
 import { computeNeeds } from '../../engine/planning/needs';
 import { resolveParams } from '../../engine/planning/resolve-params';
+import { useKnowledgePack } from '../../hooks/use-knowledge-pack';
 import type { FoodItem, FoodItemKind } from '../../models/food-item';
 import type { Profile } from '../../models/profile';
 import type { PlanWarning } from '../../models/planned-event';
@@ -61,29 +62,41 @@ function draftToRaceForParams(draft: RaceCreationDraft): Race {
 
 export function Step6({ draft, updateDraft, profile, foodItems }: Props) {
   const [warnings, setWarnings] = useState<PlanWarning[]>([]);
+  const packState = useKnowledgePack();
 
   // Compute nutritional needs (memoised, cheap).
   const needs = useMemo(() => {
     if (!profile || !draft.estimated_duration_min) return null;
+    if (packState.status !== 'ready') return null;
     const race = draftToRaceForParams(draft);
-    const params = resolveParams({ profile, race, durationMin: draft.estimated_duration_min });
-    return computeNeeds({ params, durationMin: draft.estimated_duration_min });
-  }, [profile, draft.session_type, draft.temperature_c, draft.humidity_high, draft.exposure, draft.estimated_duration_min, draft.overrides]);
+    const params = resolveParams({
+      profile,
+      race,
+      durationMin: draft.estimated_duration_min,
+      pack: packState.pack,
+    });
+    return computeNeeds({
+      params,
+      durationMin: draft.estimated_duration_min,
+      pack: packState.pack,
+    });
+  }, [profile, packState, draft.session_type, draft.temperature_c, draft.humidity_high, draft.exposure, draft.estimated_duration_min, draft.overrides]);
 
   // Feasibility check — debounced 200ms on inventory changes.
   useEffect(() => {
-    if (!needs) return;
+    if (!needs || packState.status !== 'ready') return;
     const timer = setTimeout(() => {
       const ws = checkFeasibility({
         inventory: draft.inventory,
         foodItems,
         aidStations: draft.aid_stations,
         needs,
+        pack: packState.pack,
       });
       setWarnings(ws);
     }, 200);
     return () => clearTimeout(timer);
-  }, [draft.inventory, draft.aid_stations, foodItems, needs]);
+  }, [draft.inventory, draft.aid_stations, foodItems, needs, packState]);
 
   // Build quantity map from draft.inventory.
   const quantityById = useMemo(() => {

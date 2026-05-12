@@ -1,4 +1,5 @@
 import type { FoodItem } from '../../models/food-item';
+import type { KnowledgePack } from '../../models/knowledge-pack';
 import type { PlannedEvent, PlanWarning } from '../../models/planned-event';
 import type { Profile } from '../../models/profile';
 import type { Race } from '../../models/race';
@@ -24,6 +25,7 @@ export type GeneratePlanInput = {
   race: Race;
   foodItems: FoodItem[];
   now: number;
+  pack: KnowledgePack;
 };
 
 export type GeneratePlanResult = {
@@ -32,10 +34,10 @@ export type GeneratePlanResult = {
 };
 
 export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
-  const { profile, race, foodItems } = input;
+  const { profile, race, foodItems, pack } = input;
 
   const timeline = buildTimeline(race);
-  const params = resolveParams({ profile, race, durationMin: timeline.totalDurationMin });
+  const params = resolveParams({ profile, race, durationMin: timeline.totalDurationMin, pack });
 
   const rates = computeEffectiveRates({
     params,
@@ -44,6 +46,7 @@ export function generatePlan(input: GeneratePlanInput): GeneratePlanResult {
     inventory: race.inventory,
     aidStations: race.aid_stations,
     refillInNature: race.refill_in_nature,
+    pack,
   });
 
   // Si l'override `first_intake_after_min` est plus petit que la fenêtre warmup

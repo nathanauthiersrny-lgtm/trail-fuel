@@ -1,8 +1,9 @@
 import type { AidStation } from '../../../models/aid-station';
 import type { FoodItem } from '../../../models/food-item';
 
-import { computeEffectiveRates, computeNeeds, FIRST_HOUR_REDUCTION_FACTOR } from '../../planning/needs';
+import { computeEffectiveRates, computeNeeds } from '../../planning/needs';
 import type { ResolvedParams } from '../../planning/resolve-params';
+import { TEST_PACK } from '../test-helpers/knowledge-pack';
 
 const baseParams: ResolvedParams = {
   carbs_per_hour_g: 60,
@@ -35,7 +36,7 @@ const aidFull: AidStation = {
 describe('computeNeeds', () => {
   it('applies the first-hour reduction (-30%) to a 3h race', () => {
     // First hour: 60 × 0.7 = 42g. Remaining 2h: 60 × 2 = 120g. Total = 162g.
-    const needs = computeNeeds({ params: baseParams, durationMin: 180 });
+    const needs = computeNeeds({ params: baseParams, durationMin: 180, pack: TEST_PACK });
     expect(needs.totalCarbs_g).toBeCloseTo(162, 6);
     expect(needs.totalFluid_ml).toBeCloseTo(1350, 6); // 500 × 0.7 + 500 × 2
     expect(needs.totalSodium_mg).toBeCloseTo(1350, 6);
@@ -44,32 +45,33 @@ describe('computeNeeds', () => {
 
   it('reduces a 90-min race correctly (1h reduced + 30 min full)', () => {
     // First 60: 60 × 0.7 = 42. Remaining 30 min: 60 × 0.5 = 30. Total = 72.
-    const needs = computeNeeds({ params: baseParams, durationMin: 90 });
+    const needs = computeNeeds({ params: baseParams, durationMin: 90, pack: TEST_PACK });
     expect(needs.totalCarbs_g).toBeCloseTo(72, 6);
     expect(needs.totalFluid_ml).toBeCloseTo(600, 6); // 500 × 0.7 + 500 × 0.5
   });
 
   it('reduces a 30-min race entirely (still inside the first hour)', () => {
     // 30 min entirely within first hour: 60 × 0.5 × 0.7 = 21.
-    const needs = computeNeeds({ params: baseParams, durationMin: 30 });
+    const needs = computeNeeds({ params: baseParams, durationMin: 30, pack: TEST_PACK });
     expect(needs.totalCarbs_g).toBeCloseTo(21, 6);
   });
 
   it('caps the reduction at the first hour: a 4h race has only 1h reduced', () => {
     // First 60: 42. Remaining 180 min: 60 × 3 = 180. Total = 222.
-    const needs = computeNeeds({ params: baseParams, durationMin: 240 });
+    const needs = computeNeeds({ params: baseParams, durationMin: 240, pack: TEST_PACK });
     expect(needs.totalCarbs_g).toBeCloseTo(222, 6);
   });
 
   it('returns zero needs for zero duration', () => {
-    const needs = computeNeeds({ params: baseParams, durationMin: 0 });
+    const needs = computeNeeds({ params: baseParams, durationMin: 0, pack: TEST_PACK });
     expect(needs.totalCarbs_g).toBe(0);
     expect(needs.totalFluid_ml).toBe(0);
     expect(needs.durationHours).toBe(0);
   });
 
-  it('FIRST_HOUR_REDUCTION_FACTOR is 0.70 (= -30%)', () => {
-    expect(FIRST_HOUR_REDUCTION_FACTOR).toBeCloseTo(0.70, 6);
+  it('TEST_PACK exposes a first-hour reduction factor of 0.70 (= -30%)', () => {
+    expect(TEST_PACK.first_hour.reduction_factor).toBeCloseTo(0.70, 6);
+    expect(TEST_PACK.first_hour.duration_min).toBe(60);
   });
 });
 
@@ -87,6 +89,7 @@ describe('computeEffectiveRates', () => {
       ],
       aidStations: [],
       refillInNature: false,
+      pack: TEST_PACK,
     });
     expect(result.effective.carbs_per_hour_g).toBe(60);
     expect(result.effective.fluid_per_hour_ml).toBe(500);
@@ -107,6 +110,7 @@ describe('computeEffectiveRates', () => {
       ],
       aidStations: [],
       refillInNature: false,
+      pack: TEST_PACK,
     });
     expect(result.effective.fluid_per_hour_ml).toBeCloseTo(166.67, 0);
     expect(result.isRationing.fluid).toBe(true);
@@ -126,6 +130,7 @@ describe('computeEffectiveRates', () => {
       ],
       aidStations: [],
       refillInNature: false,
+      pack: TEST_PACK,
     });
     expect(result.effective.carbs_per_hour_g).toBeCloseTo(16.67, 0);
     expect(result.isRationing.carbs).toBe(true);
@@ -143,6 +148,7 @@ describe('computeEffectiveRates', () => {
       inventory: [{ food_item_id: 'gel', quantity: 4 }],
       aidStations: [aidFull, aidFull, aidFull],
       refillInNature: false,
+      pack: TEST_PACK,
     });
     expect(result.isRationing.carbs).toBe(false);
     expect(result.isRationing.fluid).toBe(false);
@@ -156,6 +162,7 @@ describe('computeEffectiveRates', () => {
       inventory: [],
       aidStations: [],
       refillInNature: true,
+      pack: TEST_PACK,
     });
     expect(result.effective.fluid_per_hour_ml).toBe(500);
     expect(result.isRationing.fluid).toBe(false);

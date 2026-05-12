@@ -27,6 +27,7 @@ import { getOrCreateProfile } from '../db/repos/profile-repo';
 import { generatePlan } from '../engine/planning/generate';
 import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
+import { useKnowledgePack } from '../hooks/use-knowledge-pack';
 import type { AidStation } from '../models/aid-station';
 import type { EventLog } from '../models/event-log';
 import type { SkipReason } from '../models/event-feedback';
@@ -58,6 +59,7 @@ export default function RaceRuntimeScreen() {
   const params = useLocalSearchParams<{ id: string; focus?: string }>();
   const raceId = params.id;
   const dbState = useDatabase();
+  const packState = useKnowledgePack();
   const state = useActiveRace(raceId);
 
   const [foodItems, setFoodItems] = useState<FoodItem[] | null>(null);
@@ -99,6 +101,7 @@ export default function RaceRuntimeScreen() {
 
   if (
     dbState.status === 'loading' ||
+    packState.status === 'loading' ||
     state.status === 'loading' ||
     foodItems === null ||
     profile === null
@@ -108,6 +111,10 @@ export default function RaceRuntimeScreen() {
 
   if (dbState.status === 'error') {
     return <CenteredMessage label={`Erreur DB : ${dbState.error.message}`} />;
+  }
+
+  if (packState.status === 'error') {
+    return <CenteredMessage label={`Erreur knowledge pack : ${packState.error.message}`} />;
   }
 
   if (state.status === 'error') {
@@ -133,6 +140,7 @@ export default function RaceRuntimeScreen() {
         foodItemsById={foodItemsById}
         aidStationsById={aidStationsById}
         db={dbState.db}
+        pack={packState.pack}
         onStarted={state.refresh}
       />
     );
@@ -160,6 +168,7 @@ type PlannedViewProps = {
   foodItemsById: Map<string, FoodItem>;
   aidStationsById: Map<string, AidStation>;
   db: import('expo-sqlite').SQLiteDatabase;
+  pack: import('../models/knowledge-pack').KnowledgePack;
   onStarted: () => Promise<void>;
 };
 
@@ -170,6 +179,7 @@ function PlannedView({
   foodItemsById,
   aidStationsById,
   db,
+  pack,
   onStarted,
 }: PlannedViewProps) {
   const [starting, setStarting] = useState(false);
@@ -181,7 +191,7 @@ function PlannedView({
     setError(null);
     try {
       const now = Date.now();
-      const plan = generatePlan({ profile, race, foodItems, now });
+      const plan = generatePlan({ profile, race, foodItems, now, pack });
       const result = await startRace({
         db,
         race,
@@ -202,7 +212,7 @@ function PlannedView({
       }
       setStarting(false);
     }
-  }, [starting, profile, race, foodItems, foodItemsById, aidStationsById, db, onStarted]);
+  }, [starting, profile, race, foodItems, foodItemsById, aidStationsById, db, pack, onStarted]);
 
   return (
     <View style={styles.plannedContainer}>

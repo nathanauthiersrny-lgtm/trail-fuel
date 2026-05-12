@@ -3,6 +3,7 @@ import type { FoodItem } from '../../../models/food-item';
 
 import { checkFeasibility } from '../../planning/feasibility';
 import type { Needs } from '../../planning/needs';
+import { TEST_PACK } from '../test-helpers/knowledge-pack';
 
 const gel: FoodItem = {
   id: 'gel', name: 'Gel', type: 'gel', carbs_g: 25, sodium_mg: 0,
@@ -35,6 +36,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [],
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(warnings).toEqual([]);
   });
@@ -48,6 +50,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [],
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(warnings).toHaveLength(1);
     expect(warnings[0].code).toBe('carbs_insufficient');
@@ -63,6 +66,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [],
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(warnings).toHaveLength(1);
     expect(warnings[0].code).toBe('fluid_insufficient');
@@ -74,6 +78,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [],
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(warnings.map((w) => w.code).sort()).toEqual([
       'carbs_insufficient',
@@ -89,6 +94,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [aidWithEverything, aidWithEverything, aidWithEverything], // 3×60g + 3×1000ml
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(noWarnings.find((w) => w.code === 'carbs_insufficient')).toBeUndefined();
   });
@@ -99,6 +105,7 @@ describe('checkFeasibility', () => {
       foodItems: [gel, water],
       aidStations: [],
       needs: baseNeeds,
+      pack: TEST_PACK,
     });
     expect(warnings.map((w) => w.code).sort()).toEqual([
       'carbs_insufficient',

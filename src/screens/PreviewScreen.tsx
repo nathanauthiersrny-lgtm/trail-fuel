@@ -20,6 +20,7 @@ import { getOrCreateProfile } from '../db/repos/profile-repo';
 import { generatePlan } from '../engine/planning/generate';
 import type { GeneratePlanResult } from '../engine/planning/generate';
 import { useDatabase } from '../hooks/use-database';
+import { useKnowledgePack } from '../hooks/use-knowledge-pack';
 import type { FoodItem } from '../models/food-item';
 import type { Race } from '../models/race';
 import { draftToRace } from '../services/draft-to-race';
@@ -42,6 +43,7 @@ const SEVERITY_BORDER: Record<string, string> = {
 
 export default function PreviewScreen() {
   const dbState = useDatabase();
+  const packState = useKnowledgePack();
   const draft = useRaceCreationStore((s) => s.draft);
   const reset = useRaceCreationStore((s) => s.reset);
 
@@ -55,8 +57,11 @@ export default function PreviewScreen() {
   const chartWidth = width - 40;
 
   useEffect(() => {
-    if (dbState.status !== 'ready' || loadedRef.current) return;
+    if (dbState.status !== 'ready' || packState.status !== 'ready' || loadedRef.current) {
+      return;
+    }
     loadedRef.current = true;
+    const pack = packState.pack;
 
     Promise.all([
       getOrCreateProfile(dbState.db),
@@ -72,10 +77,10 @@ export default function PreviewScreen() {
         return;
       }
       setRace(r);
-      const result = generatePlan({ profile, race: r, foodItems: fi, now: Date.now() });
+      const result = generatePlan({ profile, race: r, foodItems: fi, now: Date.now(), pack });
       setPlan(result);
     });
-  }, [dbState, draft]);
+  }, [dbState, packState, draft]);
 
   async function doCreate() {
     if (!race || dbState.status !== 'ready') return;

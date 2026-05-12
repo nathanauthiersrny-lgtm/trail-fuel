@@ -1,5 +1,6 @@
 import { resolveParams } from '../../planning/resolve-params';
 import { makeBaseProfile, makeBaseRace } from '../fixtures/races/base-race';
+import { TEST_PACK } from '../test-helpers/knowledge-pack';
 
 describe('resolveParams', () => {
   describe('alert thresholds derived from session_type', () => {
@@ -8,6 +9,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ session_type: 'competition' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.skip_alert_threshold).toBe(1);
       expect(params.deficit_alert_pct).toBeCloseTo(0.20, 6);
@@ -18,6 +20,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ session_type: 'long' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.skip_alert_threshold).toBe(2);
       expect(params.deficit_alert_pct).toBeCloseTo(0.30, 6);
@@ -28,6 +31,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ session_type: 'plaisir' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.skip_alert_threshold).toBe(2);
       expect(params.deficit_alert_pct).toBeCloseTo(0.30, 6);
@@ -46,6 +50,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ session_type: sessionType }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.check_in_frequency_min).toBe(expected);
     });
@@ -57,6 +62,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ carbs_per_hour_g: 60 }),
         race: makeBaseRace({ session_type: 'long' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.carbs_per_hour_g).toBeCloseTo(60, 6);
     });
@@ -66,6 +72,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ carbs_per_hour_g: 60 }),
         race: makeBaseRace({ session_type: 'competition' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.carbs_per_hour_g).toBeCloseTo(72, 6);
     });
@@ -78,6 +85,7 @@ describe('resolveParams', () => {
           overrides: { carbs_per_hour_g: 90 },
         }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.carbs_per_hour_g).toBe(90);
     });
@@ -89,6 +97,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ temperature_c: 25, exposure: 'variable' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBeCloseTo(750, 6);
     });
@@ -98,6 +107,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ temperature_c: 7, exposure: 'variable' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBeCloseTo(500 + (7 - 10) * 50, 6);
     });
@@ -107,6 +117,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ humidity_high: true, exposure: 'variable' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBeCloseTo(500 * 1.15, 6);
     });
@@ -116,6 +127,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ temperature_c: 40, humidity_high: true, exposure: 'sun' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBe(800);
     });
@@ -125,6 +137,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ temperature_c: -10, exposure: 'shade' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBe(300);
     });
@@ -134,11 +147,13 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ exposure: 'variable' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       const sun = resolveParams({
         profile: makeBaseProfile({ fluid_per_hour_ml: 500 }),
         race: makeBaseRace({ exposure: 'sun' }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(sun.fluid_per_hour_ml).toBeCloseTo(variable.fluid_per_hour_ml * 1.10, 6);
     });
@@ -152,6 +167,7 @@ describe('resolveParams', () => {
           overrides: { fluid_per_hour_ml: 600 },
         }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_per_hour_ml).toBe(600);
     });
@@ -163,11 +179,13 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace(),
         durationMin: 120,
+        pack: TEST_PACK,
       });
       const long = resolveParams({
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace(),
         durationMin: 200,
+        pack: TEST_PACK,
       });
       expect(long.sodium_per_hour_mg - short.sodium_per_hour_mg).toBeCloseTo(100, 6);
     });
@@ -177,11 +195,13 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace({ temperature_c: 20 }),
         durationMin: 120,
+        pack: TEST_PACK,
       });
       const hot = resolveParams({
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace({ temperature_c: 30 }),
         durationMin: 120,
+        pack: TEST_PACK,
       });
       expect(hot.sodium_per_hour_mg - cool.sodium_per_hour_mg).toBeCloseTo(200, 6);
     });
@@ -191,11 +211,13 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace({ humidity_high: false }),
         durationMin: 120,
+        pack: TEST_PACK,
       });
       const humid = resolveParams({
         profile: makeBaseProfile({ sodium_per_hour_mg: 500 }),
         race: makeBaseRace({ humidity_high: true }),
         durationMin: 120,
+        pack: TEST_PACK,
       });
       expect(humid.sodium_per_hour_mg - dry.sodium_per_hour_mg).toBeCloseTo(100, 6);
     });
@@ -205,6 +227,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile({ sodium_per_hour_mg: 700 }),
         race: makeBaseRace({ temperature_c: 35, humidity_high: true }),
         durationMin: 240,
+        pack: TEST_PACK,
       });
       expect(params.sodium_per_hour_mg).toBe(1000);
     });
@@ -216,6 +239,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace(),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.first_intake_after_min).toBe(30);
     });
@@ -225,6 +249,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { first_intake_after_min: 20 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.first_intake_after_min).toBe(20);
     });
@@ -236,6 +261,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace(),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.first_fluid_reminder_min).toBe(15);
       expect(params.fluid_reminder_interval_min).toBe(30);
@@ -246,6 +272,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { first_fluid_reminder_min: 5 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.first_fluid_reminder_min).toBe(5);
     });
@@ -255,6 +282,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 20 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(params.fluid_reminder_interval_min).toBe(20);
     });
@@ -264,6 +292,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { first_fluid_reminder_min: -10 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(tooLow.first_fluid_reminder_min).toBe(0);
 
@@ -271,6 +300,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { first_fluid_reminder_min: 999 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(tooHigh.first_fluid_reminder_min).toBe(240);
     });
@@ -280,6 +310,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 0 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(tooLow.fluid_reminder_interval_min).toBe(1);
 
@@ -287,6 +318,7 @@ describe('resolveParams', () => {
         profile: makeBaseProfile(),
         race: makeBaseRace({ overrides: { fluid_reminder_interval_min: 999 } }),
         durationMin: 180,
+        pack: TEST_PACK,
       });
       expect(tooHigh.fluid_reminder_interval_min).toBe(120);
     });

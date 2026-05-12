@@ -2,6 +2,7 @@ import type { FoodItem } from '../../../models/food-item';
 
 import { generatePlan } from '../../planning/generate';
 import { makeBaseProfile, makeBaseRace } from '../fixtures/races/base-race';
+import { TEST_PACK } from '../test-helpers/knowledge-pack';
 
 const gel: FoodItem = {
   id: 'gel', name: 'Gel', type: 'gel', carbs_g: 25, sodium_mg: 0,
@@ -26,6 +27,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
 
     const intakes = result.events.filter((e) => e.type === 'intake');
@@ -53,6 +55,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     expect(result.warnings.map((w) => w.code).sort()).toEqual([
       'carbs_rationing',
@@ -83,6 +86,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
 
     const aidEvents = result.events.filter((e) => e.type === 'aid_station');
@@ -104,6 +108,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     const firstIntake = result.events.find((e) => e.type === 'intake');
     expect(firstIntake!.scheduled_at_minute).toBe(60);
@@ -126,6 +131,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     const intakes = result.events.filter((e) => e.type === 'intake');
     const checkIns = result.events.filter((e) => e.type === 'check_in');
@@ -148,6 +154,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     // Avec clamp 1 min, on ne doit pas avoir de boucle infinie.
     expect(result.events.length).toBeGreaterThan(0);
@@ -165,6 +172,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     expect(result.events.length).toBeGreaterThan(0);
     for (const event of result.events) {
@@ -185,6 +193,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
     const checkIns = result.events.filter((e) => e.type === 'check_in');
     const intakes = result.events.filter((e) => e.type === 'intake');
@@ -208,6 +217,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
 
     const intakes = result.events.filter((e) => e.type === 'intake');
@@ -242,6 +252,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel, water],
       now: 0,
+      pack: TEST_PACK,
     });
 
     const fluidWarning = result.warnings.find((w) => w.code === 'fluid_rationing');
@@ -281,6 +292,7 @@ describe('generatePlan', () => {
       }),
       foodItems: [gel],
       now: 0,
+      pack: TEST_PACK,
     });
     const intakeMinutes = result.events
       .filter((e) => e.type === 'intake')

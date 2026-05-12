@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "session_defaults": {
+    "plaisir": {
+      "intensity": "easy",
+      "intensity_modifier": 0.85,
+      "check_in_freq_min": 60,
+      "skip_alert_threshold": 2,
+      "deficit_alert_pct": 0.30
+    },
+    "long": {
+      "intensity": "moderate",
+      "intensity_modifier": 1.0,
+      "check_in_freq_min": 50,
+      "skip_alert_threshold": 2,
+      "deficit_alert_pct": 0.30
+    },
+    "dur": {
+      "intensity": "hard",
+      "intensity_modifier": 1.15,
+      "check_in_freq_min": 45,
+      "skip_alert_threshold": 2,
+      "deficit_alert_pct": 0.30
+    },
+    "test": {
+      "intensity": "moderate",
+      "intensity_modifier": 1.0,
+      "check_in_freq_min": 40,
+      "skip_alert_threshold": 2,
+      "deficit_alert_pct": 0.30
+    },
+    "competition": {
+      "intensity": "hard",
+      "intensity_modifier": 1.20,
+      "check_in_freq_min": 45,
+      "skip_alert_threshold": 1,
+      "deficit_alert_pct": 0.20
+    }
+  },
+  "param_defaults": {
+    "first_intake_after_min": 30,
+    "intake_interval_min": 20,
+    "first_fluid_reminder_min": 15,
+    "fluid_reminder_interval_min": 30
+  },
+  "param_clamps": {
+    "first_intake_after_min": { "min": 0, "max": 240 },
+    "intake_interval_min": { "min": 1, "max": 60 },
+    "check_in_frequency_min": { "min": 1, "max": 120 },
+    "first_fluid_reminder_min": { "min": 0, "max": 240 },
+    "fluid_reminder_interval_min": { "min": 1, "max": 120 }
+  },
+  "rate_bounds": {
+    "fluid_floor_ml": 300,
+    "fluid_ceiling_ml": 800,
+    "sodium_floor_mg": 300,
+    "sodium_ceiling_mg": 1000
+  },
+  "fluid_modifiers": {
+    "temperature": {
+      "hot_threshold_c": 20,
+      "hot_increment_per_c": 50,
+      "cold_threshold_c": 10,
+      "cold_increment_per_c": 50
+    },
+    "humidity_high_factor": 1.15
+  },
+  "sodium_modifiers": {
+    "long_duration_threshold_min": 180,
+    "long_duration_add_mg": 100,
+    "hot_temperature_threshold_c": 25,
+    "hot_temperature_add_mg": 200,
+    "humidity_high_add_mg": 100
+  },
+  "exposure_modifiers": {
+    "sun": 1.10,
+    "shade": 0.95,
+    "variable": 1.0
+  },
+  "first_hour": {
+    "reduction_factor": 0.70,
+    "duration_min": 60
+  },
+  "aid_station_estimates": {
+    "carbs_per_solid_stop_g": 30,
+    "carbs_per_isotonic_stop_g": 30,
+    "fluid_per_water_stop_ml": 500,
+    "fluid_per_isotonic_stop_ml": 500
+  },
+  "feasibility_threshold": 0.85
+}
