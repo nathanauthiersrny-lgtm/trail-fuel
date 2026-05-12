@@ -16,6 +16,8 @@ import type {
   WindowAction,
 } from '../../models/rule';
 
+import { ExpressionError, parseExpression } from './expression';
+
 export type ValidationOk<T> = { ok: true; value: T };
 export type ValidationErr = { ok: false; error: string };
 export type ValidationResult<T> = ValidationOk<T> | ValidationErr;
@@ -331,14 +333,22 @@ function validateNumberOrExpr(raw: unknown): ValidationResult<NumberOrExpr> {
 
 function validateExpressionValue(raw: unknown): ValidationResult<ExpressionValue> {
   if (
-    isObject(raw) &&
-    typeof (raw as Record<string, unknown>).expr === 'string' &&
-    ((raw as { expr: string }).expr as string).length > 0
+    !isObject(raw) ||
+    typeof (raw as Record<string, unknown>).expr !== 'string' ||
+    ((raw as { expr: string }).expr as string).length === 0
   ) {
-    // Syntactic check only at this layer. Expression *parsing* happens in 4.A.3.
-    return ok({ expr: (raw as { expr: string }).expr });
+    return err('must be a number or { expr: <non-empty string> }');
   }
-  return err('must be a number or { expr: <non-empty string> }');
+  const expr = (raw as { expr: string }).expr;
+  try {
+    parseExpression(expr);
+  } catch (e) {
+    if (e instanceof ExpressionError) {
+      return err(`expression "${expr}" is invalid: ${e.message}`);
+    }
+    throw e;
+  }
+  return ok({ expr });
 }
 
 // ─── Provenance ──────────────────────────────────────────────────────────────

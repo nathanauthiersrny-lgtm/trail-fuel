@@ -1,5 +1,7 @@
 import type { Condition, FieldCondition, ScalarConstant } from '../../models/rule';
 
+import { evaluateExpression, parseExpression } from './expression';
+
 /**
  * Loose context shape — concrete fields depend on the rule scope (RaceContext,
  * WindowContext, IntakePickContext). The condition evaluator just walks dotted
@@ -42,7 +44,7 @@ function evaluateFieldCondition(cond: FieldCondition, ctx: EvalContext): boolean
     case 'gte':
     case 'lt':
     case 'lte':
-      return compareNumeric(value, cond.value, cond.op);
+      return compareNumeric(value, cond.value, cond.op, ctx);
     case 'in':
       if (!isScalar(value)) return false;
       return (cond.value as ScalarConstant[]).some((v) => v === value);
@@ -101,18 +103,11 @@ function compareNumeric(
   left: unknown,
   right: number | { expr: string },
   op: 'gt' | 'gte' | 'lt' | 'lte',
+  ctx: EvalContext,
 ): boolean {
   if (typeof left !== 'number') return false;
-  let rhs: number;
-  if (typeof right === 'number') {
-    rhs = right;
-  } else {
-    // Expression values land here. In 4.A.3 we'll plug in the parser; until
-    // then, fail loudly so a misused condition doesn't silently pass/fail.
-    throw new Error(
-      `condition: ExpressionValue ({ expr: "${right.expr}" }) not yet supported in 4.A.2`,
-    );
-  }
+  const rhs =
+    typeof right === 'number' ? right : evaluateExpression(parseExpression(right.expr), ctx);
   switch (op) {
     case 'gt':
       return left > rhs;

@@ -109,13 +109,21 @@ describe('evaluateCondition — numeric comparisons', () => {
   it('returns false on missing field', () => {
     expect(evaluateCondition({ field: 'foo', op: 'gt', value: 0 }, ctx)).toBe(false);
   });
-  it('throws if the value is an expression (4.A.3 will lift this)', () => {
-    expect(() =>
+  it('evaluates an expression rhs (4.A.3) — gt with expr', () => {
+    // temperature_c=22, expr "duration_min / 10" = 20 → 22 > 20 ✓
+    expect(
       evaluateCondition(
-        { field: 'temperature_c', op: 'gt', value: { expr: '20' } },
+        { field: 'temperature_c', op: 'gt', value: { expr: 'duration_min / 10' } },
         ctx,
       ),
-    ).toThrow(/ExpressionValue/);
+    ).toBe(true);
+    // 22 > 25 → false
+    expect(
+      evaluateCondition(
+        { field: 'temperature_c', op: 'gt', value: { expr: '25' } },
+        ctx,
+      ),
+    ).toBe(false);
   });
 });
 

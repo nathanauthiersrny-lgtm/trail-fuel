@@ -103,6 +103,30 @@ describe('validateRule — race scope action', () => {
     expect(r.ok).toBe(false);
   });
 
+  it('rejects an expression with a syntax error (load-time validation)', () => {
+    const r = validateRule(
+      makeRace({
+        target: 'fluid_per_hour_ml',
+        op: 'add',
+        value: { expr: '(temperature_c + )' },
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/expression/);
+  });
+
+  it('rejects an expression referencing an unknown builtin (load-time validation)', () => {
+    const r = validateRule(
+      makeRace({
+        target: 'fluid_per_hour_ml',
+        op: 'add',
+        value: { expr: 'frobnicate(1, 2)' },
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/expression/);
+  });
+
   it('rejects an unknown target', () => {
     const r = validateRule(
       makeRace({ target: 'temperature_c', op: 'multiply', value: 1.15 }),
