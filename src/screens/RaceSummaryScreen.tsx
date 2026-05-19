@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,7 @@ import {
 } from '../db/repos/event-feedback-repo';
 import { listFoodItems } from '../db/repos/food-item-repo';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
+import { getOrCreateProfile } from '../db/repos/profile-repo';
 import {
   computeSummaryStats,
   type ActionStats,
@@ -31,6 +33,14 @@ import {
 import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
 import type { AidStation } from '../models/aid-station';
+import type { Profile } from '../models/profile';
+import { applyProposalToProfile } from '../services/post-race/apply-proposal';
+import { buildAnalyzePayload } from '../services/post-race/build-payload';
+import {
+  analyzeRace,
+  describeAnalyzeFailure,
+  type PostRaceProposal,
+} from '../services/post-race/client';
 import {
   skipReasonToTag,
   type EventFeedback,
@@ -48,18 +58,28 @@ export default function RaceSummaryScreen() {
   const dbState = useDatabase();
   const state = useActiveRace(raceId);
   const [foodItems, setFoodItems] = useState<FoodItem[] | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [feedbacks, setFeedbacks] = useState<Map<string, EventFeedback>>(
     () => new Map(),
   );
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<{
+    summary_fr: string;
+    proposals: PostRaceProposal[];
+  } | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     if (dbState.status !== 'ready') return;
     let cancelled = false;
-    void listFoodItems(dbState.db).then((items) => {
-      if (cancelled) return;
-      setFoodItems(items);
-    });
+    void Promise.all([listFoodItems(dbState.db), getOrCreateProfile(dbState.db)]).then(
+      ([items, p]) => {
+        if (cancelled) return;
+        setFoodItems(items);
+        setProfile(p);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -193,6 +213,65 @@ export default function RaceSummaryScreen() {
     now: Date.now(),
   });
 
+  const canAnalyze =
+    (race.status === 'completed' || race.status === 'abandoned') &&
+    !!profile &&
+    !!foodItems;
+
+  const handleAnalyze = async () => {
+    if (!profile || !foodItems) return;
+    setAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const payload = buildAnalyzePayload({
+        race,
+        profile,
+        plannedEvents,
+        logs,
+        foodItems,
+      });
+      const result = await analyzeRace(payload);
+      if (!result.ok) {
+        setAnalysisError(describeAnalyzeFailure(result));
+        return;
+      }
+      setAnalysis({
+        summary_fr: result.response.summary_fr,
+        proposals: result.response.proposals,
+      });
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleAcceptProposal = async (idx: number) => {
+    if (dbState.status !== 'ready' || !profile || !analysis) return;
+    const proposal = analysis.proposals[idx];
+    if (proposal.kind !== 'profile_adjustment') {
+      setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
+      return;
+    }
+    try {
+      const updated = await applyProposalToProfile(dbState.db, profile, proposal);
+      if (updated) {
+        setProfile(updated);
+        Alert.alert(
+          'Profil mis à jour',
+          `${labelForField(proposal.field)} : ${proposal.current_value} → ${proposal.suggested_value}`,
+        );
+      }
+      setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
+    } catch (err) {
+      Alert.alert('Erreur', `Impossible d'appliquer : ${String(err)}`);
+    }
+  };
+
+  const handleDismissProposal = (idx: number) => {
+    setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
+  };
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <Header
@@ -200,6 +279,56 @@ export default function RaceSummaryScreen() {
         status={race.status}
         durationMs={stats.durationMs}
       />
+
+      {/* Post-race recalibration (A.4) */}
+      {canAnalyze && (
+        <View style={styles.analysisSection}>
+          {!analysis && !analysisError && (
+            <Pressable
+              onPress={handleAnalyze}
+              disabled={analyzing}
+              style={({ pressed }) => [
+                styles.analyzeBtn,
+                pressed && styles.analyzeBtnPressed,
+                analyzing && styles.analyzeBtnDisabled,
+              ]}
+            >
+              {analyzing ? (
+                <ActivityIndicator color="#0a7ea4" size="small" />
+              ) : (
+                <Text style={styles.analyzeBtnText}>🧪 Analyser cette course avec Claude</Text>
+              )}
+            </Pressable>
+          )}
+
+          {analysisError && (
+            <View style={styles.analysisErrorBox}>
+              <Text style={styles.analysisErrorText}>{analysisError}</Text>
+              <Pressable onPress={() => setAnalysisError(null)}>
+                <Text style={styles.analysisErrorDismiss}>OK</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {analysis && (
+            <View style={styles.analysisBox}>
+              <Text style={styles.analysisSummary}>{analysis.summary_fr}</Text>
+              {analysis.proposals.length === 0 ? (
+                <Text style={styles.analysisEmpty}>Aucune proposition particulière sur cette course.</Text>
+              ) : (
+                analysis.proposals.map((p, i) => (
+                  <ProposalCard
+                    key={i}
+                    proposal={p}
+                    onAccept={() => handleAcceptProposal(i)}
+                    onDismiss={() => handleDismissProposal(i)}
+                  />
+                ))
+              )}
+            </View>
+          )}
+        </View>
+      )}
 
       <Text style={styles.sectionLabel}>Stats</Text>
       <ActionStatRow label="Intakes" icon="🍊" stats={stats.intake} />
@@ -266,6 +395,90 @@ function Header({
       <Text style={styles.duration}>{formatChrono(durationMs)}</Text>
     </View>
   );
+}
+
+function ProposalCard({
+  proposal,
+  onAccept,
+  onDismiss,
+}: {
+  proposal: PostRaceProposal;
+  onAccept: () => void;
+  onDismiss: () => void;
+}) {
+  const confidencePct = Math.round(proposal.confidence * 100);
+  if (proposal.kind === 'profile_adjustment') {
+    const delta = proposal.suggested_value - proposal.current_value;
+    const arrow = delta > 0 ? '↑' : '↓';
+    return (
+      <View style={styles.proposalCard}>
+        <View style={styles.proposalHeaderRow}>
+          <Text style={styles.proposalBadge}>Profil</Text>
+          <Text style={styles.proposalConfidence}>{confidencePct}%</Text>
+        </View>
+        <Text style={styles.proposalTitle}>
+          {labelForField(proposal.field)} : {proposal.current_value} → {proposal.suggested_value}{' '}
+          <Text style={{ color: delta > 0 ? '#1f7a32' : '#cc5200' }}>{arrow}</Text>
+        </Text>
+        <Text style={styles.proposalWhy}>{proposal.why}</Text>
+        <View style={styles.proposalActions}>
+          <Pressable onPress={onDismiss} style={({ pressed }) => [styles.proposalSecondaryBtn, pressed && { opacity: 0.6 }]}>
+            <Text style={styles.proposalSecondaryText}>Refuser</Text>
+          </Pressable>
+          <Pressable onPress={onAccept} style={({ pressed }) => [styles.proposalPrimaryBtn, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.proposalPrimaryText}>Appliquer</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+  if (proposal.kind === 'race_note') {
+    return (
+      <View style={[styles.proposalCard, proposal.severity === 'warning' && styles.proposalWarn]}>
+        <View style={styles.proposalHeaderRow}>
+          <Text style={styles.proposalBadge}>
+            {proposal.severity === 'warning' ? 'Attention' : 'Note'}
+          </Text>
+          <Text style={styles.proposalConfidence}>{confidencePct}%</Text>
+        </View>
+        <Text style={styles.proposalTitle}>{proposal.observation}</Text>
+        <Text style={styles.proposalWhy}>{proposal.why}</Text>
+        <View style={styles.proposalActions}>
+          <Pressable onPress={onDismiss} style={({ pressed }) => [styles.proposalPrimaryBtn, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.proposalPrimaryText}>Compris</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+  // kb_suggestion
+  return (
+    <View style={styles.proposalCard}>
+      <View style={styles.proposalHeaderRow}>
+        <Text style={styles.proposalBadge}>Idée KB</Text>
+        <Text style={styles.proposalConfidence}>{confidencePct}%</Text>
+      </View>
+      <Text style={styles.proposalTitle}>{proposal.article_idea}</Text>
+      <Text style={styles.proposalWhy}>{proposal.why}</Text>
+      <View style={styles.proposalActions}>
+        <Pressable onPress={onDismiss} style={({ pressed }) => [styles.proposalPrimaryBtn, pressed && { opacity: 0.8 }]}>
+          <Text style={styles.proposalPrimaryText}>Noté</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function removeAt(cur: { summary_fr: string; proposals: PostRaceProposal[] }, idx: number) {
+  return { ...cur, proposals: cur.proposals.filter((_, i) => i !== idx) };
+}
+
+function labelForField(field: 'carbs_per_hour_g' | 'fluid_per_hour_ml' | 'sodium_per_hour_mg'): string {
+  switch (field) {
+    case 'carbs_per_hour_g':   return 'Carbs/h';
+    case 'fluid_per_hour_ml':  return 'Fluide/h';
+    case 'sodium_per_hour_mg': return 'Sodium/h';
+  }
 }
 
 const STATUS_BADGE: Record<RaceStatus, { label: string; bg: string; fg: string }> = {
@@ -638,5 +851,136 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  analysisSection: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  analyzeBtn: {
+    borderWidth: 1.5,
+    borderColor: '#0a7ea4',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  analyzeBtnPressed: {
+    backgroundColor: '#e6f4f8',
+  },
+  analyzeBtnDisabled: {
+    opacity: 0.5,
+  },
+  analyzeBtnText: {
+    color: '#0a7ea4',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  analysisErrorBox: {
+    borderWidth: 1,
+    borderColor: '#EF9A9A',
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  analysisErrorText: {
+    flex: 1,
+    color: '#c62828',
+    fontSize: 13,
+    marginRight: 8,
+  },
+  analysisErrorDismiss: {
+    color: '#0a7ea4',
+    fontWeight: '600',
+  },
+  analysisBox: {
+    gap: 8,
+  },
+  analysisSummary: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#444',
+    backgroundColor: '#f4f8fb',
+    padding: 10,
+    borderRadius: 6,
+  },
+  analysisEmpty: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  proposalCard: {
+    borderWidth: 1,
+    borderColor: '#d8e6ed',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+  },
+  proposalWarn: {
+    borderColor: '#FFD180',
+    backgroundColor: '#FFF8E1',
+  },
+  proposalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  proposalBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0a7ea4',
+    backgroundColor: '#e6f4f8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  proposalConfidence: {
+    fontSize: 11,
+    color: '#888',
+  },
+  proposalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+  },
+  proposalWhy: {
+    fontSize: 12,
+    color: '#555',
+    lineHeight: 17,
+  },
+  proposalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  proposalSecondaryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bbb',
+  },
+  proposalSecondaryText: {
+    color: '#666',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  proposalPrimaryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#0a7ea4',
+  },
+  proposalPrimaryText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
