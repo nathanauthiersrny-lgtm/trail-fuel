@@ -1,3 +1,17 @@
+/**
+ * @deprecated Legacy planning pipeline (rules engine + knowledge pack).
+ *
+ * Conservé comme fallback dans RaceRuntimeScreen pour les races créées AVANT
+ * la migration 007 (qui n'ont pas de race.timeline_plan persisté). Pour toute
+ * nouvelle race, le pipeline est `src/engine/builder/build-plan.ts` →
+ * TimelinePlan → adapter timelinePlanToEvents() → PlannedEvent[].
+ *
+ * À supprimer (avec les répertoires `rules/`, `services/knowledge-pack/` et
+ * les modèles `knowledge-pack.ts` / `rule.ts`) quand toutes les races en
+ * SQLite auront été créées sous le nouveau pipeline. Pas urgent : la
+ * coexistence est propre, juste du code mort qui occupe le disque.
+ */
+
 import type { FoodItem } from '../../models/food-item';
 import type { KnowledgePack } from '../../models/knowledge-pack';
 import type { PlannedEvent, PlanWarning } from '../../models/planned-event';
