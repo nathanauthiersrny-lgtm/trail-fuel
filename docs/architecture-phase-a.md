@@ -204,15 +204,16 @@ L'ancienne UX "extraire des rules d'un article" disparaît. À la place : "écri
 **Note** : zod schema reporté à A.2 (mobile n'a pas zod en deps, on l'ajoute quand on en a besoin pour le runtime parsing). Les types TS suffisent en A.1.
 
 ### A.2 Engine déterministe + Runtime refactor (~20h, vs 30h DSL)
-- [ ] `src/engine/timeline-plan.ts` — types TS, schéma zod
-- [ ] `src/engine/builder/` — engine déterministe (~400 lignes)
-  - `targets.ts` — résolution carbs/fluid/sodium baseline + modifs
-  - `placement.ts` — placement uniform + restrictions terrain
-  - `safety.ts` — bornes physiologiques
-- [ ] `src/engine/validator/` — validation TimelinePlan (mobile + companion)
-- [ ] Refactor `src/engine/planning/generate.ts` → produit un TimelinePlan
-- [ ] Refactor runtime (notifs, logs, check-ins) pour consommer TimelinePlan
-- [ ] Tests Jest exhaustifs (engine est petit, on peut tester en entier)
+- [x] `src/engine/builder/constants.ts` — modificateurs + safety bounds (extraits v1.json en code TS)
+- [x] `src/engine/builder/targets.ts` — computeRaceTargets pure (intensité, chaleur, humidité, sodium long)
+- [x] `src/engine/builder/placement.ts` — placeEvents : intakes périodiques + terrain (skip descente tech, climb_steep→gel) + check-ins + fluid_reminders + aid_stations
+- [x] `src/engine/builder/safety.ts` — validatePlan partagé mobile+companion (bornes carbs 30-120, fluid 300-1000, sodium 300-1500, intervalles, ordering)
+- [x] `src/engine/builder/build-plan.ts` — orchestrateur retournant TimelinePlan v1 (réutilise buildTimeline+buildWindows existants pour GPX)
+- [x] Tests Jest sur targets, build-plan, safety
+- [ ] **Deferred A.4** : adapter `TimelinePlan → PlannedEvent[]` ou refactor runtime pour consommer TimelinePlan directement
+- [ ] **Deferred A.4** : suppression de `src/engine/planning/` une fois la transition complète
+
+**Note** : l'ancien pipeline `src/engine/planning/generate.ts` reste actif. Le runtime mobile continue de l'utiliser. Le nouveau `buildPlan` est dispo en parallèle et sera consommé par le companion en A.3. La fusion finale (runtime sur TimelinePlan, suppression de l'ancien) se fait en A.4.
 
 ### A.3 Companion : KB + Plan previewer (~25h, vs 10h)
 - [ ] Migration des ~15 articles existants en markdown+frontmatter
