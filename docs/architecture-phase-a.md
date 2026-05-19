@@ -228,10 +228,18 @@ L'ancienne UX "extraire des rules d'un article" disparaît. À la place : "écri
 **Note** : le bouton mobile dépend du fait que le runtime sache consommer un TimelinePlan. C'est le scope A.4, on le fait en même temps.
 
 ### A.4 Re-calibration (~15h) — Phase B fusionnée
-- [ ] Mobile : tracking planned vs actual en course
+- [x] **Step 1** — Adapter `TimelinePlan → PlannedEvent[]` (pure function avec tests)
+- [x] **Step 1** — API client mobile `src/services/plan-enrichment/client.ts` avec timeout + erreurs typées
+- [x] **Step 1** — Orchestrator `generateEnrichedPlan()` combine engine + LLM optionnel + adapter
+- [x] **Step 2** — Bouton "Enrichir avec Claude" dans PreviewScreen (preview-only, ne persiste pas)
+- [ ] **Step 3** — Persistence du plan enrichi dans la DB (schema change race table)
+- [ ] **Step 3** — RaceRuntimeScreen consomme le plan persisté (au lieu de re-generatePlan)
+- [ ] Mobile : tracking planned vs actual en course (event-log existant, ajouter source_event_id)
 - [ ] Post-course : sync vers companion, génération propositions ajustement
 - [ ] Renforcement KB : modifs LLM acceptées loggées en "exemples positifs"
 - [ ] Re-génération à un ravito si internet dispo (re-call endpoint)
+
+**État actuel** : chaîne end-to-end testable (engine builder → companion enrichment → adapter → events runtime). Le runtime exécute encore l'ancien pipeline par défaut. Le bouton "Enrichir" dans PreviewScreen permet de valider le nouveau flow.
 
 ### A.5 Stabilisation (~10h)
 - [ ] 2-3 courses perso sur nouveau moteur
