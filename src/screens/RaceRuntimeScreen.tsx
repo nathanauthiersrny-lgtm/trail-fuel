@@ -24,6 +24,7 @@ import { SkipReasonSheet } from '../components/runtime/SkipReasonSheet';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
 import { listFoodItems } from '../db/repos/food-item-repo';
 import { getOrCreateProfile } from '../db/repos/profile-repo';
+import { timelinePlanToEvents } from '../engine/builder/timeline-plan-to-events';
 import { generatePlan } from '../engine/planning/generate';
 import { useActiveRace } from '../hooks/use-active-race';
 import { useDatabase } from '../hooks/use-database';
@@ -191,7 +192,16 @@ function PlannedView({
     setError(null);
     try {
       const now = Date.now();
-      const plan = generatePlan({ profile, race, foodItems, now, pack });
+      // Si la race a un TimelinePlan persisté (créé via le nouveau pipeline
+      // A.4), on l'utilise. Sinon fallback sur l'ancien generatePlan pour
+      // les races créées avant la migration 007.
+      const plan = race.timeline_plan
+        ? timelinePlanToEvents({
+            plan: race.timeline_plan,
+            foodItems,
+            inventory: race.inventory,
+          })
+        : generatePlan({ profile, race, foodItems, now, pack });
       const result = await startRace({
         db,
         race,

@@ -9,6 +9,7 @@ import type {
   RaceOverrides,
   RaceStatus,
 } from '../../models/race';
+import type { TimelinePlan } from '../../models/timeline-plan';
 
 // ─── Row type ───────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export type RaceRow = {
   distance_km: number | null;
   elevation_gain_m: number | null;
   elevation_loss_m: number | null;
+  timeline_plan_json: string | null;
 };
 
 // ─── Serialization ──────────────────────────────────────────────────────────
@@ -69,6 +71,7 @@ export function toRow(race: Race): RaceRow {
     distance_km: race.distance_km ?? null,
     elevation_gain_m: race.elevation_gain_m ?? null,
     elevation_loss_m: race.elevation_loss_m ?? null,
+    timeline_plan_json: race.timeline_plan ? JSON.stringify(race.timeline_plan) : null,
   };
 }
 
@@ -108,6 +111,9 @@ export function fromRow(row: RaceRow): Race {
     ...(row.elevation_loss_m !== null
       ? { elevation_loss_m: row.elevation_loss_m }
       : {}),
+    ...(row.timeline_plan_json !== null
+      ? { timeline_plan: JSON.parse(row.timeline_plan_json) as TimelinePlan }
+      : {}),
   };
 }
 
@@ -125,9 +131,9 @@ export async function createRace(
       inventory_json, refill_in_nature, aid_stations_json, overrides_json,
       scheduled_start_at, started_at, ended_at,
       paused_segments_json, scheduled_notification_ids_json, status,
-      distance_km, elevation_gain_m, elevation_loss_m
+      distance_km, elevation_gain_m, elevation_loss_m, timeline_plan_json
     ) VALUES (
-      ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+      ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
     )`,
     [
       r.id,
@@ -154,6 +160,7 @@ export async function createRace(
       r.distance_km,
       r.elevation_gain_m,
       r.elevation_loss_m,
+      r.timeline_plan_json,
     ],
   );
 }
@@ -189,7 +196,8 @@ export async function updateRace(
       aid_stations_json = ?, overrides_json = ?, scheduled_start_at = ?,
       started_at = ?, ended_at = ?, paused_segments_json = ?,
       scheduled_notification_ids_json = ?, status = ?,
-      distance_km = ?, elevation_gain_m = ?, elevation_loss_m = ?
+      distance_km = ?, elevation_gain_m = ?, elevation_loss_m = ?,
+      timeline_plan_json = ?
     WHERE id = ?`,
     [
       r.name,
@@ -214,6 +222,7 @@ export async function updateRace(
       r.distance_km,
       r.elevation_gain_m,
       r.elevation_loss_m,
+      r.timeline_plan_json,
       r.id,
     ],
   );

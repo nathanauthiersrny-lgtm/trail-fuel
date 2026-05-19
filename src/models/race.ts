@@ -1,5 +1,6 @@
 import type { AidStation } from './aid-station';
 import type { GPXTrack } from './gpx-track';
+import type { TimelinePlan } from './timeline-plan';
 
 export type SessionType = 'plaisir' | 'long' | 'dur' | 'test' | 'competition';
 export type Intensity = 'easy' | 'moderate' | 'hard';
@@ -54,4 +55,11 @@ export type Race = {
   distance_km?: number;
   elevation_gain_m?: number;
   elevation_loss_m?: number;
+  /**
+   * TimelinePlan persisté à la création de la race (engine brut ou enrichi
+   * par le LLM via le companion). Le runtime le matérialise en PlannedEvent[].
+   * Optional : NULL sur les races créées avant la migration 007 → fallback
+   * sur l'ancien pipeline generatePlan().
+   */
+  timeline_plan?: TimelinePlan;
 };

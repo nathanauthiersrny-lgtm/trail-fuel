@@ -6,6 +6,7 @@ import { migration003Races } from './003-races';
 import { migration004Runtime } from './004-runtime';
 import { migration005EventFeedback } from './005-event-feedback';
 import { migration006RuleToggles } from './006-rule-toggles';
+import { migration007TimelinePlan } from './007-timeline-plan';
 
 export type Migration = {
   version: number;
@@ -20,6 +21,7 @@ const MIGRATIONS: Migration[] = [
   migration004Runtime,
   migration005EventFeedback,
   migration006RuleToggles,
+  migration007TimelinePlan,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<number> {

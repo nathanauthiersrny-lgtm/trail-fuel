@@ -17,13 +17,14 @@ import { TimelinePreview } from '../components/TimelinePreview';
 import { createRace } from '../db/repos/race-repo';
 import { listFoodItems } from '../db/repos/food-item-repo';
 import { getOrCreateProfile } from '../db/repos/profile-repo';
-import { generatePlan } from '../engine/planning/generate';
+import { buildPlan } from '../engine/builder/build-plan';
+import { timelinePlanToEvents } from '../engine/builder/timeline-plan-to-events';
 import type { GeneratePlanResult } from '../engine/planning/generate';
 import { useDatabase } from '../hooks/use-database';
-import { useKnowledgePack } from '../hooks/use-knowledge-pack';
 import type { FoodItem } from '../models/food-item';
 import type { Profile } from '../models/profile';
 import type { Race } from '../models/race';
+import type { TimelinePlan } from '../models/timeline-plan';
 import { draftToRace } from '../services/draft-to-race';
 import { generateEnrichedPlan } from '../services/plan-enrichment/orchestrator';
 import type { OrchestratorResult } from '../services/plan-enrichment/orchestrator';
@@ -46,7 +47,6 @@ const SEVERITY_BORDER: Record<string, string> = {
 
 export default function PreviewScreen() {
   const dbState = useDatabase();
-  const packState = useKnowledgePack();
   const draft = useRaceCreationStore((s) => s.draft);
   const reset = useRaceCreationStore((s) => s.reset);
 
@@ -54,6 +54,8 @@ export default function PreviewScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [plan, setPlan] = useState<GeneratePlanResult | null>(null);
+  /** TimelinePlan source de vérité pour la persistance (brut ou enrichi). */
+  const [finalPlan, setFinalPlan] = useState<TimelinePlan | null>(null);
   const [saving, setSaving] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichMeta, setEnrichMeta] = useState<OrchestratorResult['enrichmentMeta'] | null>(null);
@@ -64,11 +66,10 @@ export default function PreviewScreen() {
   const chartWidth = width - 40;
 
   useEffect(() => {
-    if (dbState.status !== 'ready' || packState.status !== 'ready' || loadedRef.current) {
+    if (dbState.status !== 'ready' || loadedRef.current) {
       return;
     }
     loadedRef.current = true;
-    const pack = packState.pack;
 
     Promise.all([
       getOrCreateProfile(dbState.db),
@@ -85,10 +86,19 @@ export default function PreviewScreen() {
         return;
       }
       setRace(r);
-      const result = generatePlan({ profile: loadedProfile, race: r, foodItems: fi, now: Date.now(), pack });
-      setPlan(result);
+      // Nouveau pipeline (A.4) : engine builder déterministe → TimelinePlan
+      // brut → adapter → events pour la preview. C'est la source unique de
+      // vérité : ce que tu vois ici sera ce qui s'exécutera en course.
+      const brut = buildPlan({ profile: loadedProfile, race: r });
+      setFinalPlan(brut.plan);
+      const adapted = timelinePlanToEvents({
+        plan: brut.plan,
+        foodItems: fi,
+        inventory: r.inventory,
+      });
+      setPlan({ events: adapted.events, warnings: adapted.warnings });
     });
-  }, [dbState, packState, draft]);
+  }, [dbState, draft]);
 
   async function handleEnrich() {
     if (!race || !profile) return;
@@ -103,6 +113,7 @@ export default function PreviewScreen() {
       });
       if (result.wasEnriched && result.enrichmentMeta) {
         setPlan({ events: result.events, warnings: result.warnings });
+        setFinalPlan(result.finalPlan);
         setEnrichMeta(result.enrichmentMeta);
       } else {
         const failure = result.warnings.find((w) => w.code === 'enrichment_unavailable');
@@ -119,7 +130,11 @@ export default function PreviewScreen() {
     if (!race || dbState.status !== 'ready') return;
     setSaving(true);
     try {
-      await createRace(dbState.db, race);
+      // On attache le TimelinePlan (brut ou enrichi) à la race avant de
+      // l'enregistrer. Le runtime utilisera ce plan persisté plutôt que
+      // de re-générer à chaque load.
+      const raceToSave: Race = finalPlan ? { ...race, timeline_plan: finalPlan } : race;
+      await createRace(dbState.db, raceToSave);
       reset();
       ToastAndroid.show('Sortie créée !', ToastAndroid.SHORT);
       router.replace({ pathname: '/race/[id]', params: { id: race.id } });
