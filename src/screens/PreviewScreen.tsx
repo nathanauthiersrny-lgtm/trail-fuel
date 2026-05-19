@@ -22,8 +22,11 @@ import type { GeneratePlanResult } from '../engine/planning/generate';
 import { useDatabase } from '../hooks/use-database';
 import { useKnowledgePack } from '../hooks/use-knowledge-pack';
 import type { FoodItem } from '../models/food-item';
+import type { Profile } from '../models/profile';
 import type { Race } from '../models/race';
 import { draftToRace } from '../services/draft-to-race';
+import { generateEnrichedPlan } from '../services/plan-enrichment/orchestrator';
+import type { OrchestratorResult } from '../services/plan-enrichment/orchestrator';
 import { useRaceCreationStore } from '../services/race-creation-store';
 
 // ─── Severity colors ──────────────────────────────────────────────────────────
@@ -48,9 +51,13 @@ export default function PreviewScreen() {
   const reset = useRaceCreationStore((s) => s.reset);
 
   const [race, setRace] = useState<Race | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [plan, setPlan] = useState<GeneratePlanResult | null>(null);
   const [saving, setSaving] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMeta, setEnrichMeta] = useState<OrchestratorResult['enrichmentMeta'] | null>(null);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
   const loadedRef = useRef(false);
 
   const { width } = useWindowDimensions();
@@ -66,7 +73,8 @@ export default function PreviewScreen() {
     Promise.all([
       getOrCreateProfile(dbState.db),
       listFoodItems(dbState.db),
-    ]).then(([profile, fi]) => {
+    ]).then(([loadedProfile, fi]) => {
+      setProfile(loadedProfile);
       setFoodItems(fi);
       let r: Race;
       try {
@@ -77,10 +85,35 @@ export default function PreviewScreen() {
         return;
       }
       setRace(r);
-      const result = generatePlan({ profile, race: r, foodItems: fi, now: Date.now(), pack });
+      const result = generatePlan({ profile: loadedProfile, race: r, foodItems: fi, now: Date.now(), pack });
       setPlan(result);
     });
   }, [dbState, packState, draft]);
+
+  async function handleEnrich() {
+    if (!race || !profile) return;
+    setEnriching(true);
+    setEnrichError(null);
+    try {
+      const result = await generateEnrichedPlan({
+        profile,
+        race,
+        foodItems,
+        mode: 'try_enrich',
+      });
+      if (result.wasEnriched && result.enrichmentMeta) {
+        setPlan({ events: result.events, warnings: result.warnings });
+        setEnrichMeta(result.enrichmentMeta);
+      } else {
+        const failure = result.warnings.find((w) => w.code === 'enrichment_unavailable');
+        setEnrichError(failure?.message ?? 'Enrichment indisponible — plan brut conservé.');
+      }
+    } catch (err) {
+      setEnrichError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEnriching(false);
+    }
+  }
 
   async function doCreate() {
     if (!race || dbState.status !== 'ready') return;
@@ -207,6 +240,35 @@ export default function PreviewScreen() {
         />
       </ScrollView>
 
+      {/* Enrichment section (A.4 — preview-only, ne persiste pas dans la race) */}
+      <View style={styles.enrichSection}>
+        {enrichMeta && (
+          <View style={styles.enrichBanner}>
+            <Text style={styles.enrichBannerTitle}>✨ Plan enrichi par Claude</Text>
+            <Text style={styles.enrichBannerText}>
+              {enrichMeta.appliedOps} modif{enrichMeta.appliedOps > 1 ? 's' : ''} appliquée{enrichMeta.appliedOps > 1 ? 's' : ''}
+              {enrichMeta.rejectedOps > 0 ? ` · ${enrichMeta.rejectedOps} rejetée${enrichMeta.rejectedOps > 1 ? 's' : ''}` : ''}
+              {enrichMeta.articlesUsed.length > 0 ? ` · ${enrichMeta.articlesUsed.length} article${enrichMeta.articlesUsed.length > 1 ? 's' : ''} KB` : ''}
+            </Text>
+          </View>
+        )}
+        {enrichError && <Text style={styles.enrichError}>{enrichError}</Text>}
+        <TouchableOpacity
+          style={[styles.enrichBtn, (enriching || !profile) && styles.enrichBtnDisabled]}
+          onPress={handleEnrich}
+          disabled={enriching || !profile}
+          activeOpacity={0.75}
+        >
+          {enriching ? (
+            <ActivityIndicator size="small" color="#FF6B35" />
+          ) : (
+            <Text style={styles.enrichBtnText}>
+              {enrichMeta ? 'Réenrichir avec Claude' : 'Enrichir avec Claude (test)'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
       {/* Buttons */}
       <View style={styles.actions}>
         <TouchableOpacity style={styles.secondaryBtn} onPress={handleModify} activeOpacity={0.75}>
@@ -329,6 +391,51 @@ const styles = StyleSheet.create({
     color: '#111',
     paddingHorizontal: 20,
     marginBottom: 8,
+  },
+  enrichSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  enrichBanner: {
+    borderWidth: 1,
+    borderColor: '#FFD180',
+    backgroundColor: '#FFF8E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  enrichBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 2,
+  },
+  enrichBannerText: {
+    fontSize: 12,
+    color: '#5D4037',
+  },
+  enrichError: {
+    fontSize: 12,
+    color: '#C62828',
+    paddingHorizontal: 4,
+  },
+  enrichBtn: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#FF6B35',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enrichBtnDisabled: {
+    opacity: 0.5,
+  },
+  enrichBtnText: {
+    color: '#FF6B35',
+    fontSize: 13,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
