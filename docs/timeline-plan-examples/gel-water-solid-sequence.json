@@ -1,0 +1,102 @@
+{
+  "_comment": "Exemple §15 #2 — 'Gel toutes les 10 min pendant 1h, puis eau pendant 1h, puis solide toutes les 30 min'. Race 6h.",
+  "version": 1,
+  "race_id": "race-example-002",
+  "generated_at": "2026-05-19T18:00:00Z",
+  "generator": {
+    "engine_version": "1.0.0",
+    "llm_model": "claude-haiku-4-5",
+    "llm_enrichment_applied": true,
+    "kb_articles_used": ["heat-protocol-sequence"]
+  },
+  "race_targets": {
+    "carbs_per_hour_g": {
+      "default": 60,
+      "timeline": [
+        { "from_min": 0, "to_min": 60, "value": 150, "why": "Phase 1 : charge rapide via gels (chaleur)", "source": "llm" },
+        { "from_min": 60, "to_min": 120, "value": 0, "why": "Phase 2 : pause carbs, eau pure pour soulager l'estomac", "source": "llm" },
+        { "from_min": 120, "to_min": null, "value": 60, "why": "Phase 3 : maintien solide à 60g/h", "source": "llm" }
+      ]
+    },
+    "fluid_per_hour_ml": { "default": 500 },
+    "sodium_per_hour_mg": { "default": 800 }
+  },
+  "events": [
+    {
+      "id": "evt-001", "type": "intake", "at_min": 10,
+      "why": "Phase 1 — gel #1 (séquence 10 min)",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-002", "type": "intake", "at_min": 20,
+      "why": "Phase 1 — gel #2",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-003", "type": "intake", "at_min": 30,
+      "why": "Phase 1 — gel #3",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-004", "type": "intake", "at_min": 40,
+      "why": "Phase 1 — gel #4",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-005", "type": "intake", "at_min": 50,
+      "why": "Phase 1 — gel #5",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-006", "type": "intake", "at_min": 60,
+      "why": "Phase 1 — gel #6 (dernier)",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["gel"], "carbs_target_g": 25 }
+    },
+    {
+      "id": "evt-007", "type": "fluid_reminder", "at_min": 75,
+      "why": "Phase 2 — eau pure, repos estomac",
+      "source": "llm", "confidence": 0.9,
+      "advice": { "fluid_target_ml": 200, "forbidden_kinds": ["gel", "bar", "real_food"] }
+    },
+    {
+      "id": "evt-008", "type": "fluid_reminder", "at_min": 100,
+      "why": "Phase 2 — eau pure",
+      "source": "llm", "confidence": 0.9,
+      "advice": { "fluid_target_ml": 200, "forbidden_kinds": ["gel", "bar", "real_food"] }
+    },
+    {
+      "id": "evt-009", "type": "intake", "at_min": 150,
+      "why": "Phase 3 — premier solide (séquence 30 min)",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["bar", "real_food"], "carbs_target_g": 30 }
+    },
+    {
+      "id": "evt-010", "type": "intake", "at_min": 180,
+      "why": "Phase 3 — solide #2",
+      "source": "llm", "confidence": 0.85,
+      "advice": { "preferred_kinds": ["bar", "real_food"], "carbs_target_g": 30 }
+    }
+  ],
+  "branches": [
+    {
+      "id": "br-checkin-bad",
+      "trigger": { "type": "checkin_feedback", "feedback": "bad" },
+      "action": { "type": "switch_preferred_kinds", "kinds": ["water"], "for_min": 30 },
+      "why": "Si check-in bad : 30 min eau seule pour reset estomac",
+      "source": "llm",
+      "max_fires": 2
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "warnings": [
+      { "severity": "medium", "code": "high_gel_freq", "message": "6 gels en 60 min : vérifier la tolérance individuelle (test à l'entraînement)" }
+    ]
+  }
+}

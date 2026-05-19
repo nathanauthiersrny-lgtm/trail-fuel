@@ -1,0 +1,87 @@
+{
+  "_comment": "Exemple §15 #1 — '60g/h puis 90g/h après 5h'. Race ultra 8h, plat, météo douce.",
+  "version": 1,
+  "race_id": "race-example-001",
+  "generated_at": "2026-05-19T18:00:00Z",
+  "generator": {
+    "engine_version": "1.0.0",
+    "llm_model": "claude-haiku-4-5",
+    "llm_enrichment_applied": true,
+    "kb_articles_used": ["ultra-carbs-progression"]
+  },
+  "race_targets": {
+    "carbs_per_hour_g": {
+      "default": 60,
+      "timeline": [
+        {
+          "from_min": 0,
+          "to_min": 300,
+          "value": 60,
+          "why": "Phase 1 : 60g/h sur les 5 premières heures",
+          "source": "llm"
+        },
+        {
+          "from_min": 300,
+          "to_min": null,
+          "value": 90,
+          "why": "Phase 2 : passage à 90g/h après 5h pour soutenir la fin de course",
+          "source": "llm"
+        }
+      ]
+    },
+    "fluid_per_hour_ml": { "default": 500 },
+    "sodium_per_hour_mg": { "default": 700 }
+  },
+  "events": [
+    {
+      "id": "evt-001",
+      "type": "intake",
+      "at_min": 20,
+      "why": "Premier apport — cible 20g carbs (60g/h ÷ 3)",
+      "source": "engine",
+      "confidence": 1.0,
+      "advice": { "carbs_target_g": 20 }
+    },
+    {
+      "id": "evt-002",
+      "type": "intake",
+      "at_min": 40,
+      "why": "Intake 60g/h — gel ou barre",
+      "source": "engine",
+      "confidence": 1.0,
+      "advice": { "carbs_target_g": 20, "preferred_kinds": ["gel", "bar"] }
+    },
+    {
+      "id": "evt-018",
+      "type": "intake",
+      "at_min": 300,
+      "why": "Transition 60→90g/h. Mieux vaut commencer par un gel rapide pour passer le seuil.",
+      "source": "llm",
+      "confidence": 0.9,
+      "advice": { "carbs_target_g": 30, "preferred_kinds": ["gel"] }
+    },
+    {
+      "id": "evt-019",
+      "type": "intake",
+      "at_min": 320,
+      "why": "Maintien 90g/h — solide pour varier",
+      "source": "llm",
+      "confidence": 0.85,
+      "advice": { "carbs_target_g": 30, "preferred_kinds": ["bar", "real_food"] }
+    }
+  ],
+  "branches": [
+    {
+      "id": "br-skip-3-in-1h",
+      "trigger": { "type": "skipped_count", "window_min": 60, "operator": ">=", "value": 3 },
+      "action": { "type": "boost_next_intake", "factor": 1.5 },
+      "why": "Si 3 skips en 1h : prochain intake +50% pour compenser le déficit",
+      "source": "engine",
+      "max_fires": 2
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "warnings": []
+  }
+}
