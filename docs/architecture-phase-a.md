@@ -231,15 +231,16 @@ L'ancienne UX "extraire des rules d'un article" disparaît. À la place : "écri
 - [x] **Step 1** — Adapter `TimelinePlan → PlannedEvent[]` (pure function avec tests)
 - [x] **Step 1** — API client mobile `src/services/plan-enrichment/client.ts` avec timeout + erreurs typées
 - [x] **Step 1** — Orchestrator `generateEnrichedPlan()` combine engine + LLM optionnel + adapter
-- [x] **Step 2** — Bouton "Enrichir avec Claude" dans PreviewScreen (preview-only, ne persiste pas)
-- [ ] **Step 3** — Persistence du plan enrichi dans la DB (schema change race table)
-- [ ] **Step 3** — RaceRuntimeScreen consomme le plan persisté (au lieu de re-generatePlan)
-- [ ] Mobile : tracking planned vs actual en course (event-log existant, ajouter source_event_id)
-- [ ] Post-course : sync vers companion, génération propositions ajustement
-- [ ] Renforcement KB : modifs LLM acceptées loggées en "exemples positifs"
-- [ ] Re-génération à un ravito si internet dispo (re-call endpoint)
+- [x] **Step 2** — Bouton "Enrichir avec Claude" dans PreviewScreen
+- [x] **Step 3** — Migration 007 + race-repo : `timeline_plan_json` column
+- [x] **Step 3** — PreviewScreen persiste le TimelinePlan (brut ou enrichi) avec la race
+- [x] **Step 3** — RaceRuntimeScreen consomme `race.timeline_plan` via adapter, fallback legacy si null
+- [x] Tracking planned vs actual : `EventLog.planned_event_id` déjà en place — réutilisé tel quel
+- [x] Post-course : endpoint `/api/analyze-race` + bouton "Analyser avec Claude" dans RaceSummaryScreen, propositions structurées (profile_adjustment / race_note / kb_suggestion), apply au profil avec clamp défensif
+- [ ] **Reporté A.5** — Renforcement KB : modifs LLM acceptées loggées en "exemples positifs" (besoin de table DB companion)
+- [ ] **Reporté A.5** — Re-génération à un ravito si internet dispo (bouton runtime → re-call /api/generate-plan + replace plan + reschedule notifs)
 
-**État actuel** : chaîne end-to-end testable (engine builder → companion enrichment → adapter → events runtime). Le runtime exécute encore l'ancien pipeline par défaut. Le bouton "Enrichir" dans PreviewScreen permet de valider le nouveau flow.
+**État actuel** : chaîne complète opérationnelle. L'engine builder produit un TimelinePlan brut, le LLM enrichit optionnellement, le runtime exécute le plan persisté. Après la course, l'analyse Claude propose des recalibrations que l'user accepte/refuse modif par modif.
 
 ### A.5 Stabilisation (~10h)
 - [ ] 2-3 courses perso sur nouveau moteur
