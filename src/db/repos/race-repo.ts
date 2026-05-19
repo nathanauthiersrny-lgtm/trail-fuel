@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { AidStation } from '../../models/aid-station';
 import type { GPXTrack } from '../../models/gpx-track';
+import type { PostRaceAnalysis } from '../../models/post-race-analysis';
 import type {
   InventoryItem,
   PausedSegment,
@@ -39,6 +40,7 @@ export type RaceRow = {
   elevation_gain_m: number | null;
   elevation_loss_m: number | null;
   timeline_plan_json: string | null;
+  post_race_analysis_json: string | null;
 };
 
 // ─── Serialization ──────────────────────────────────────────────────────────
@@ -72,6 +74,9 @@ export function toRow(race: Race): RaceRow {
     elevation_gain_m: race.elevation_gain_m ?? null,
     elevation_loss_m: race.elevation_loss_m ?? null,
     timeline_plan_json: race.timeline_plan ? JSON.stringify(race.timeline_plan) : null,
+    post_race_analysis_json: race.post_race_analysis
+      ? JSON.stringify(race.post_race_analysis)
+      : null,
   };
 }
 
@@ -114,6 +119,9 @@ export function fromRow(row: RaceRow): Race {
     ...(row.timeline_plan_json !== null
       ? { timeline_plan: JSON.parse(row.timeline_plan_json) as TimelinePlan }
       : {}),
+    ...(row.post_race_analysis_json !== null
+      ? { post_race_analysis: JSON.parse(row.post_race_analysis_json) as PostRaceAnalysis }
+      : {}),
   };
 }
 
@@ -131,9 +139,10 @@ export async function createRace(
       inventory_json, refill_in_nature, aid_stations_json, overrides_json,
       scheduled_start_at, started_at, ended_at,
       paused_segments_json, scheduled_notification_ids_json, status,
-      distance_km, elevation_gain_m, elevation_loss_m, timeline_plan_json
+      distance_km, elevation_gain_m, elevation_loss_m, timeline_plan_json,
+      post_race_analysis_json
     ) VALUES (
-      ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+      ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
     )`,
     [
       r.id,
@@ -161,6 +170,7 @@ export async function createRace(
       r.elevation_gain_m,
       r.elevation_loss_m,
       r.timeline_plan_json,
+      r.post_race_analysis_json,
     ],
   );
 }
@@ -197,7 +207,7 @@ export async function updateRace(
       started_at = ?, ended_at = ?, paused_segments_json = ?,
       scheduled_notification_ids_json = ?, status = ?,
       distance_km = ?, elevation_gain_m = ?, elevation_loss_m = ?,
-      timeline_plan_json = ?
+      timeline_plan_json = ?, post_race_analysis_json = ?
     WHERE id = ?`,
     [
       r.name,
@@ -223,8 +233,20 @@ export async function updateRace(
       r.elevation_gain_m,
       r.elevation_loss_m,
       r.timeline_plan_json,
+      r.post_race_analysis_json,
       r.id,
     ],
+  );
+}
+
+export async function updatePostRaceAnalysis(
+  db: SQLiteDatabase,
+  id: string,
+  analysis: PostRaceAnalysis | null,
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE races SET post_race_analysis_json = ? WHERE id = ?',
+    [analysis ? JSON.stringify(analysis) : null, id],
   );
 }
 

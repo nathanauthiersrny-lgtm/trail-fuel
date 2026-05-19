@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,7 @@ import {
 import { listFoodItems } from '../db/repos/food-item-repo';
 import type { PersistedPlannedEvent } from '../db/repos/planned-event-repo';
 import { getOrCreateProfile } from '../db/repos/profile-repo';
+import { updatePostRaceAnalysis } from '../db/repos/race-repo';
 import {
   computeSummaryStats,
   type ActionStats,
@@ -69,6 +70,7 @@ export default function RaceSummaryScreen() {
     proposals: PostRaceProposal[];
   } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const hydratedAnalysisRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (dbState.status !== 'ready') return;
@@ -117,6 +119,21 @@ export default function RaceSummaryScreen() {
       cancelled = true;
     };
   }, [dbState, raceId]);
+
+  // Hydrate l'analyse persistée au premier mount où on a la race.
+  // hydratedAnalysisRef évite de réhydrater si l'user a déjà dismissé des
+  // proposals (qui ont mis à jour le state local mais pas encore la DB).
+  useEffect(() => {
+    if (state.status !== 'ready') return;
+    if (hydratedAnalysisRef.current === state.race.id) return;
+    hydratedAnalysisRef.current = state.race.id;
+    if (state.race.post_race_analysis) {
+      setAnalysis({
+        summary_fr: state.race.post_race_analysis.summary_fr,
+        proposals: state.race.post_race_analysis.proposals,
+      });
+    }
+  }, [state]);
 
   const toggleExpand = useCallback((plannedEventId: string) => {
     setExpanded((prev) => {
@@ -218,6 +235,22 @@ export default function RaceSummaryScreen() {
     !!profile &&
     !!foodItems;
 
+  const persistAnalysis = useCallback(
+    async (next: { summary_fr: string; proposals: PostRaceProposal[] } | null) => {
+      if (dbState.status !== 'ready') return;
+      try {
+        await updatePostRaceAnalysis(
+          dbState.db,
+          race.id,
+          next ? { ...next, analyzed_at: Date.now() } : null,
+        );
+      } catch (err) {
+        console.error('[summary] persistAnalysis failed', err);
+      }
+    },
+    [dbState, race.id],
+  );
+
   const handleAnalyze = async () => {
     if (!profile || !foodItems) return;
     setAnalyzing(true);
@@ -235,10 +268,12 @@ export default function RaceSummaryScreen() {
         setAnalysisError(describeAnalyzeFailure(result));
         return;
       }
-      setAnalysis({
+      const next = {
         summary_fr: result.response.summary_fr,
         proposals: result.response.proposals,
-      });
+      };
+      setAnalysis(next);
+      void persistAnalysis(next);
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -249,27 +284,31 @@ export default function RaceSummaryScreen() {
   const handleAcceptProposal = async (idx: number) => {
     if (dbState.status !== 'ready' || !profile || !analysis) return;
     const proposal = analysis.proposals[idx];
-    if (proposal.kind !== 'profile_adjustment') {
-      setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
-      return;
-    }
-    try {
-      const updated = await applyProposalToProfile(dbState.db, profile, proposal);
-      if (updated) {
-        setProfile(updated);
-        Alert.alert(
-          'Profil mis à jour',
-          `${labelForField(proposal.field)} : ${proposal.current_value} → ${proposal.suggested_value}`,
-        );
+    if (proposal.kind === 'profile_adjustment') {
+      try {
+        const updated = await applyProposalToProfile(dbState.db, profile, proposal);
+        if (updated) {
+          setProfile(updated);
+          Alert.alert(
+            'Profil mis à jour',
+            `${labelForField(proposal.field)} : ${proposal.current_value} → ${proposal.suggested_value}`,
+          );
+        }
+      } catch (err) {
+        Alert.alert('Erreur', `Impossible d'appliquer : ${String(err)}`);
+        return;
       }
-      setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
-    } catch (err) {
-      Alert.alert('Erreur', `Impossible d'appliquer : ${String(err)}`);
     }
+    const next = removeAt(analysis, idx);
+    setAnalysis(next);
+    void persistAnalysis(next);
   };
 
   const handleDismissProposal = (idx: number) => {
-    setAnalysis((cur) => (cur ? removeAt(cur, idx) : null));
+    if (!analysis) return;
+    const next = removeAt(analysis, idx);
+    setAnalysis(next);
+    void persistAnalysis(next);
   };
 
   return (
@@ -325,6 +364,21 @@ export default function RaceSummaryScreen() {
                   />
                 ))
               )}
+              <Pressable
+                onPress={handleAnalyze}
+                disabled={analyzing}
+                style={({ pressed }) => [
+                  styles.analyzeBtnSmall,
+                  pressed && styles.analyzeBtnPressed,
+                  analyzing && styles.analyzeBtnDisabled,
+                ]}
+              >
+                {analyzing ? (
+                  <ActivityIndicator color="#0a7ea4" size="small" />
+                ) : (
+                  <Text style={styles.analyzeBtnSmallText}>↻ Relancer une analyse</Text>
+                )}
+              </Pressable>
             </View>
           )}
         </View>
@@ -874,6 +928,19 @@ const styles = StyleSheet.create({
     color: '#0a7ea4',
     fontSize: 14,
     fontWeight: '600',
+  },
+  analyzeBtnSmall: {
+    borderWidth: 1,
+    borderColor: '#0a7ea4',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  analyzeBtnSmallText: {
+    color: '#0a7ea4',
+    fontSize: 12,
+    fontWeight: '500',
   },
   analysisErrorBox: {
     borderWidth: 1,

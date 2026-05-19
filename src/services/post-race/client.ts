@@ -6,36 +6,15 @@
  * (analyse post-course uniquement).
  */
 
+import type {
+  PostRaceProposal,
+  ProfileAdjustmentField,
+} from '../../models/post-race-analysis';
+
+export type { PostRaceProposal, ProfileAdjustmentField };
+
 const COMPANION_URL = process.env.EXPO_PUBLIC_COMPANION_URL ?? '';
 const TIMEOUT_MS = 60_000; // analyse plus longue qu'un enrichment, sonnet vs haiku
-
-export type ProfileAdjustmentField =
-  | 'carbs_per_hour_g'
-  | 'fluid_per_hour_ml'
-  | 'sodium_per_hour_mg';
-
-export type PostRaceProposal =
-  | {
-      kind: 'profile_adjustment';
-      why: string;
-      confidence: number;
-      field: ProfileAdjustmentField;
-      current_value: number;
-      suggested_value: number;
-    }
-  | {
-      kind: 'race_note';
-      why: string;
-      confidence: number;
-      severity: 'info' | 'warning';
-      observation: string;
-    }
-  | {
-      kind: 'kb_suggestion';
-      why: string;
-      confidence: number;
-      article_idea: string;
-    };
 
 export type AnalyzeRaceRequest = {
   race_summary: {

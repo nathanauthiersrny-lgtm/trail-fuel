@@ -1,5 +1,6 @@
 import type { AidStation } from './aid-station';
 import type { GPXTrack } from './gpx-track';
+import type { PostRaceAnalysis } from './post-race-analysis';
 import type { TimelinePlan } from './timeline-plan';
 
 export type SessionType = 'plaisir' | 'long' | 'dur' | 'test' | 'competition';
@@ -62,4 +63,10 @@ export type Race = {
    * sur l'ancien pipeline generatePlan().
    */
   timeline_plan?: TimelinePlan;
+  /**
+   * Résultat de l'analyse Claude post-course. Persisté pour éviter de
+   * re-payer un call sonnet à chaque ouverture du summary. Mutable au fil
+   * des accept/dismiss côté UI.
+   */
+  post_race_analysis?: PostRaceAnalysis;
 };
