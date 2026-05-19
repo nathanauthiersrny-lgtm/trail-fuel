@@ -237,10 +237,19 @@ L'ancienne UX "extraire des rules d'un article" disparaît. À la place : "écri
 - [x] **Step 3** — RaceRuntimeScreen consomme `race.timeline_plan` via adapter, fallback legacy si null
 - [x] Tracking planned vs actual : `EventLog.planned_event_id` déjà en place — réutilisé tel quel
 - [x] Post-course : endpoint `/api/analyze-race` + bouton "Analyser avec Claude" dans RaceSummaryScreen, propositions structurées (profile_adjustment / race_note / kb_suggestion), apply au profil avec clamp défensif
-- [ ] **Reporté A.5** — Renforcement KB : modifs LLM acceptées loggées en "exemples positifs" (besoin de table DB companion)
-- [ ] **Reporté A.5** — Re-génération à un ravito si internet dispo (bouton runtime → re-call /api/generate-plan + replace plan + reschedule notifs)
+- [x] Persistance de l'analyse (migration 008 + post_race_analysis_json) — évite de re-payer un call sonnet, mutations persistées sur accept/dismiss
+- [ ] **Reporté plus tard** — Renforcement KB : modifs LLM acceptées loggées en "exemples positifs" (besoin de table DB companion + prompt sonnet qui les exploite)
+- [ ] **Reporté plus tard** — Re-génération à un ravito si internet dispo (bouton runtime → re-call /api/generate-plan + replace plan + reschedule notifs). Plus complexe car touche au notif scheduling.
 
-**État actuel** : chaîne complète opérationnelle. L'engine builder produit un TimelinePlan brut, le LLM enrichit optionnellement, le runtime exécute le plan persisté. Après la course, l'analyse Claude propose des recalibrations que l'user accepte/refuse modif par modif.
+### A.5 Stabilisation (~10h)
+- [x] CLAUDE.md à jour : structure src/, architecture Phase A, config EXPO_PUBLIC_COMPANION_URL, marqueur deprecated sur legacy
+- [x] Tests Jest pure functions : build-payload (6 cas) + apply-proposal (8 cas, clamp défensif)
+- [x] Docblock @deprecated sur legacy `src/engine/planning/generate.ts`
+- [ ] 2-3 courses perso terrain pour valider end-to-end sous conditions réelles
+- [ ] Onboarding 2-3 potes runners (closed beta manuelle, APK side-load)
+- [ ] Suppression complète du legacy quand toutes les races existantes auront roulé sous le nouveau pipeline
+
+**État final A.4 + A.5 stabilisation** : chaîne complète opérationnelle, persistée, testée sur pure functions. L'engine builder produit un TimelinePlan brut, le LLM enrichit optionnellement, le runtime exécute le plan persisté. Après la course, l'analyse Claude propose des recalibrations que l'user accepte/refuse modif par modif, persistées entre les sessions.
 
 ### A.5 Stabilisation (~10h)
 - [ ] 2-3 courses perso sur nouveau moteur
