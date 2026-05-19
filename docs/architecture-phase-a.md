@@ -216,12 +216,16 @@ L'ancienne UX "extraire des rules d'un article" disparaît. À la place : "écri
 **Note** : l'ancien pipeline `src/engine/planning/generate.ts` reste actif. Le runtime mobile continue de l'utiliser. Le nouveau `buildPlan` est dispo en parallèle et sera consommé par le companion en A.3. La fusion finale (runtime sur TimelinePlan, suppression de l'ancien) se fait en A.4.
 
 ### A.3 Companion : KB + Plan previewer (~25h, vs 10h)
-- [ ] Migration des ~15 articles existants en markdown+frontmatter
-- [ ] `companion/lib/knowledge/` — loader + tag indexer
-- [ ] `companion/lib/plan-builder/` — prompt + Claude call + validator
-- [ ] `companion/app/api/generate-plan/` — endpoint
-- [ ] UI previewer : input race sample → diff plan brut vs enrichi → accept/refuse par modif
-- [ ] Mobile : bouton "enrichir avec LLM" sur écran de plan (skippable si offline)
+- [x] 4 articles markdown d'amorçage (à étendre à ~15 avec les sources réelles)
+- [x] `companion/lib/knowledge/` — loader gray-matter + filter par tags + schema zod
+- [x] `companion/lib/timeline-plan/` — types + zod (miroir mobile)
+- [x] `companion/lib/plan-builder/` — patch-schema, apply-patch, prompt, generate (orchestrateur)
+- [x] `companion/app/api/generate-plan/` — endpoint POST avec validation, fallback 502
+- [x] UI previewer `/preview` : sample race + brut plan, diff résumé, ops appliquées/rejetées, articles matched, tokens + coût USD estimé
+- [ ] **Reporté A.4** : accept/refuse granulaire par modification dans le previewer (pour l'instant on régénère et on lit le diff visuellement)
+- [ ] **Reporté A.4** : bouton mobile "enrichir avec LLM" — couplé au refactor runtime (A.4)
+
+**Note** : le bouton mobile dépend du fait que le runtime sache consommer un TimelinePlan. C'est le scope A.4, on le fait en même temps.
 
 ### A.4 Re-calibration (~15h) — Phase B fusionnée
 - [ ] Mobile : tracking planned vs actual en course
